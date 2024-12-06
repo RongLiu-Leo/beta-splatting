@@ -76,7 +76,7 @@
     ```sh
     pip install plyfile tqdm
     pip install git+https://github.com/rahul-goel/fused-ssim/
-    pip install submodules\simple-knn
-    pip install submodules\diff-gaussian-rasterization
+    pip install submodules/simple-knn
+    pip install submodules/diff-gaussian-rasterization
     ```
 
