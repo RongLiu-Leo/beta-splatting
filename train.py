@@ -117,6 +117,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
+            if iteration % 500 == 0 and iteration > 15_000:
+                save_best_model(scene, render, (pipe, background))
             training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
@@ -167,6 +169,21 @@ def prepare_output_and_logger(args):
     else:
         print("Tensorboard not available: not logging progress")
     return tb_writer
+
+def save_best_model(scene : Scene, renderFunc, renderArgs):
+    torch.cuda.empty_cache()
+    psnr_test = 0.0
+    test_view_stack = scene.getTestCameras()
+    for idx, viewpoint in enumerate(test_view_stack):
+        image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0)
+        gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+        psnr_test += psnr(image, gt_image).mean().double()
+    psnr_test /= len(test_view_stack)
+    if psnr_test > scene.best_psnr:
+        print(f"save best model. PSNR: {psnr_test}")
+        scene.save("best")
+        scene.best_psnr = psnr_test
+    torch.cuda.empty_cache()
 
 def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
     if tb_writer:

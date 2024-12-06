@@ -29,6 +29,7 @@ class Scene:
         self.model_path = args.model_path
         self.loaded_iter = None
         self.gaussians = gaussians
+        self.best_psnr = 0
 
         if load_iteration:
             if load_iteration == -1:
