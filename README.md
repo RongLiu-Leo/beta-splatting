@@ -1,10 +1,9 @@
-# ** NeurIPS 2024 SPOTLIGHT **
-# 3D Gaussian Splatting as Markov Chain Monte Carlo
+# Beta Splatting
 
 [![button](https://img.shields.io/badge/Project%20Website-orange?style=for-the-badge)](https://ubc-vision.github.io/3dgs-mcmc/)
 [![button](https://img.shields.io/badge/Paper-blue?style=for-the-badge)](https://arxiv.org/abs/2404.09591)
 
-<span class="author-block">
+<!-- <span class="author-block">
   <a href="https://shakibakh.github.io/">Shakiba Kheradmand</a>,
 </span>
 <span class="author-block">
@@ -32,13 +31,13 @@
   <a href="https://www.cs.ubc.ca/~kmyi/">Kwang Moo Yi</a>
 </span>
 
-<hr>
+<hr> -->
 
-<video controls>
+<!-- <video controls>
   <source src="docs/resources/training_rand_compare/bicycle_both-rand.mp4" type="video/mp4">
-</video>
+</video> -->
 
-<section class="section" id="BibTeX">
+<!-- <section class="section" id="BibTeX">
   <div class="container is-max-desktop content">
     <h2 class="title">BibTeX</h2>
     <pre><code>@article{kheradmand20243d,
@@ -48,60 +47,36 @@
   year={2024}
 }</code></pre>
   </div>
-</section>
+</section> -->
 
 
 
 ## How to Install
 
-This project is built on top of the [Original 3DGS code base](https://github.com/graphdeco-inria/gaussian-splatting) and has been tested only on Ubuntu 20.04. If you encounter any issues, please refer to the [Original 3DGS code base](https://github.com/graphdeco-inria/gaussian-splatting) for installation instructions.
+<!-- This project is built on top of the [Original 3DGS code base](https://github.com/graphdeco-inria/gaussian-splatting) and has been tested only on Ubuntu 20.04. If you encounter any issues, please refer to the [Original 3DGS code base](https://github.com/graphdeco-inria/gaussian-splatting) for installation instructions. -->
 
 ### Installation Steps
 
 1. **Clone the Repository:**
    ```sh
-   git clone --recursive https://github.com/ubc-vision/3dgs-mcmc.git
-   cd 3dgs-mcmc
+   git clone https://github.com/RongLiu-Leo/beta-splatting.git
+   cd beta-splatting
    ```
-2. **Set Up the Conda Environment:**
+1. **Set Up the Conda Environment:**
     ```sh
-    conda create -y -n 3dgs-mcmc-env python=3.8
-    conda activate 3dgs-mcmc-env
+    conda create -y -n beta_splatting python=3.8
+    conda activate beta_splatting
     ```
-3. **Install Dependencies:**
+1. **Install Pytorch**
     ```sh
-    pip install plyfile tqdm torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
-    conda install cudatoolkit-dev=11.7 -c conda-forge
+    # Based on your CUDA version
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
     ```
-4. **Install Submodules:**
+1. **Install Dependencies and Submodules:**
     ```sh
-    CUDA_HOME=PATH/TO/CONDA/envs/3dgs-mcmc-env/pkgs/cuda-toolkit/ pip install submodules/diff-gaussian-rasterization submodules/simple-knn/
+    pip install plyfile tqdm
+    pip install git+https://github.com/rahul-goel/fused-ssim/
+    pip install submodules\simple-knn
+    pip install submodules\diff-gaussian-rasterization
     ```
-### Common Issues:
-1. **Access Error During Cloning:**
-If you encounter an access error when cloning the repository, ensure you have your SSH key set up correctly. Alternatively, you can clone using HTTPS.
-2. **Running diff-gaussian-rasterization Fails:**
-You may need to change the compiler options in the setup.py file to run both the original and this code. Update the setup.py with the following extra_compile_args:
-    ```sh
-    extra_compile_args={"nvcc": ["-Xcompiler", "-fno-gnu-unique", "-I" + os.path.join(os.path.dirname(os.path.abspath(__file__)), "third_party/glm/")]}
-    ```
-    Afterwards, you need to reinstall diff-gaussian-rasterization. This is mentioned in [3DGS-issue-#41](https://github.com/graphdeco-inria/gaussian-splatting/issues/41).
-    
-By following these steps, you should be able to install the project and reproduce the results. If you encounter any issues, refer to the original 3DGS code base for further guidance.
-
-## How to run
-Running code is similar to the [Original 3DGS code base](https://github.com/graphdeco-inria/gaussian-splatting) with the following differences:
-- You need to specify the maximum number of Gaussians that will be used. This is performed using --cap_max argument. The results in the paper uses the final number of Gaussians reached by the original 3DGS run for each shape.
-- You need to specify the scale regularizer coefficient. This is performed using --scale_reg argument. For all the experiments in the paper, we use 0.01.
-- You need to specify the opacity regularizer coefficient. This is performed using --opacity_reg argument. For Deep Blending dataset, we use 0.001. For all other experiments in the paper, we use 0.01.
-- You need to specify the noise learning rate. This is performed using --noise_lr argument. For all the experiments in the paper, we use 5e5.
-- You need to specify the initialization type. This is performed using --init_type argument. Options are random (to initialize randomly) or sfm (to initialize using a pointcloud).
-
-## How to Reproduce the Results in the Paper
-```sh
-python train.py --source_path PATH/TO/Shape --config configs/shape.json --eval
-```
-
-
-
 
