@@ -33,6 +33,7 @@ parser.add_argument("--skip_training", action="store_true")
 parser.add_argument("--skip_rendering", action="store_true")
 parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--output_path", default="./eval")
+parser.add_argument("--cuda_device", type=str, default="0")
 args, _ = parser.parse_known_args()
 
 all_scenes = []
@@ -48,13 +49,13 @@ if not args.skip_training or not args.skip_rendering:
     args = parser.parse_args()
 
 if not args.skip_training:
-    common_args = " --quiet --eval --test_iterations -1 --init_type sfm "
+    common_args = f" --quiet --eval --test_iterations -1 --init_type sfm"
     for scene in mipnerf360_outdoor_scenes:
         source = args.mipnerf360 + "/" + scene
-        os.system("python train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
+        os.system(f"python train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
     for scene in mipnerf360_indoor_scenes:
         source = args.mipnerf360 + "/" + scene
-        os.system("python train.py -s " + source + " -i images_2 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
+        os.system(f"python train.py -s " + source + " -i images_2 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
     # for scene in tanks_and_temples_scenes:
     #     source = args.tanksandtemples + "/" + scene
     #     os.system("python train.py -s " + source + " -m " + args.output_path + "/" + scene + common_args)

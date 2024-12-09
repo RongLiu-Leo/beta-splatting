@@ -12,8 +12,10 @@
 import torch
 import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from gsplat.rendering import rasterization 
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
+from matplotlib import pyplot as plt
 
 def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
     """
@@ -30,25 +32,25 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         pass
 
     # Set up rasterization configuration
-    tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
-    tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
+    # tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
+    # tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
 
-    raster_settings = GaussianRasterizationSettings(
-        image_height=int(viewpoint_camera.image_height),
-        image_width=int(viewpoint_camera.image_width),
-        tanfovx=tanfovx,
-        tanfovy=tanfovy,
-        bg=bg_color,
-        scale_modifier=scaling_modifier,
-        viewmatrix=viewpoint_camera.world_view_transform,
-        projmatrix=viewpoint_camera.full_proj_transform,
-        sh_degree=pc.active_sh_degree,
-        campos=viewpoint_camera.camera_center,
-        prefiltered=False,
-        debug=pipe.debug
-    )
+    # raster_settings = GaussianRasterizationSettings(
+    #     image_height=int(viewpoint_camera.image_height),
+    #     image_width=int(viewpoint_camera.image_width),
+    #     tanfovx=tanfovx,
+    #     tanfovy=tanfovy,
+    #     bg=bg_color,
+    #     scale_modifier=scaling_modifier,
+    #     viewmatrix=viewpoint_camera.world_view_transform,
+    #     projmatrix=viewpoint_camera.full_proj_transform,
+    #     sh_degree=pc.active_sh_degree,
+    #     campos=viewpoint_camera.camera_center,
+    #     prefiltered=False,
+    #     debug=pipe.debug
+    # )
 
-    rasterizer = GaussianRasterizer(raster_settings=raster_settings)
+    # rasterizer = GaussianRasterizer(raster_settings=raster_settings)
 
     means3D = pc.get_xyz
     means2D = screenspace_points
@@ -59,43 +61,86 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     scales = None
     rotations = None
     cov3D_precomp = None
+
     if pipe.compute_cov3D_python:
         cov3D_precomp = pc.get_covariance(scaling_modifier)
     else:
         scales = pc.get_scaling
         rotations = pc.get_rotation
-
+        
     # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
-    shs = None
-    colors_precomp = None
-    if override_color is None:
-        if pipe.convert_SHs_python:
-            shs_view = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
-            dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
-            dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
-            sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
-            colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
-        else:
-            shs = pc.get_features
-    else:
-        colors_precomp = override_color
+    shs0 = pc.get_features
+    
+    # colors_precomp = None
+    # if override_color is None:
+    #     if pipe.convert_SHs_python:
+    #         shs_view = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
+    #         dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
+    #         dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
+    #         sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
+    #         colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
+    #     else:
+    #         shs = pc.get_features
+    # else:
+    #     colors_precomp = override_color
 
-    # Rasterize visible Gaussians to image, obtain their radii (on screen). 
-    rendered_image, radii, is_used = rasterizer(
-        means3D = means3D,
-        means2D = means2D,
-        shs = shs,
-        colors_precomp = colors_precomp,
-        opacities = opacity,
-        scales = scales,
-        rotations = rotations,
-        cov3D_precomp = cov3D_precomp)
+    # # Rasterize visible Gaussians to image, obtain their radii (on screen). 
+    # rendered_image, radii, is_used = rasterizer(
+    #     means3D = means3D,
+    #     means2D = means2D,
+    #     shs = shs,
+    #     colors_precomp = colors_precomp,
+    #     opacities = opacity,
+    #     scales = scales,
+    #     rotations = rotations,
+    #     cov3D_precomp = cov3D_precomp)
+    
+    # Convert OpenGL 4x4 projection matrix to 3x3 intrinsic matrix format
+    K = torch.zeros((3,3), device=viewpoint_camera.projection_matrix.device)
+    
+    fx = 0.5 * viewpoint_camera.image_width / math.tan(viewpoint_camera.FoVx / 2)
+    fy = 0.5 * viewpoint_camera.image_height / math.tan(viewpoint_camera.FoVy / 2)
+    
+    K[0,0] = fx
+    K[1,1] = fy
+    K[0,2] = viewpoint_camera.image_width / 2
+    K[1,2] = viewpoint_camera.image_height / 2
+    K[2,2] = 1.0
+
+    # call the gsplat renderer
+    rgbs, alphas, meta = rasterization(
+        means=means3D,
+        quats=rotations,
+        scales=scales,
+        opacities=opacity.squeeze(),
+        colors=shs0,
+        viewmats=viewpoint_camera.world_view_transform.transpose(0,1).unsqueeze(0),
+        Ks=K.unsqueeze(0),
+        width=viewpoint_camera.image_width,
+        height=viewpoint_camera.image_height,
+        backgrounds=bg_color.unsqueeze(0),
+        render_mode="RGB",
+        camera_model="pinhole",
+        covars=cov3D_precomp,
+        sh_degree=pc.active_sh_degree,
+        packed=False,
+    )
+    
+    # # Convert from N,H,W,C to N,C,H,W format
+    rgbs = rgbs.permute(0, 3, 1, 2).contiguous()[0]
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
     # They will be excluded from value updates used in the splitting criteria.
-    return {"render": rendered_image,
-            "viewspace_points": screenspace_points,
-            "visibility_filter" : radii > 0,
-            "radii": radii,
-            "is_used": is_used}
+    # return {"render": rendered_image,
+    #     "viewspace_points": screenspace_points,
+    #     "visibility_filter" : radii > 0,
+    #     "radii": radii,
+    #     "is_used": is_used}
+
+    
+    return {"render": rgbs,
+            "viewspace_points": meta["means2d"],
+            "visibility_filter" : meta["radii"] > 0,
+            "radii": meta["radii"],
+            "is_used": meta["radii"] > 0}
