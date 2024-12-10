@@ -17,10 +17,15 @@ import os
 from utils.system_utils import mkdir_p
 from plyfile import PlyData, PlyElement
 from utils.sh_utils import RGB2SH
-from simple_knn._C import distCUDA2
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
-from utils.reloc_utils import compute_relocation_cuda
+from sklearn.neighbors import NearestNeighbors
+
+def knn(x, K=4):
+    x_np = x.cpu().numpy()
+    model = NearestNeighbors(n_neighbors=K, metric="euclidean").fit(x_np)
+    distances, _ = model.kneighbors(x_np)
+    return torch.from_numpy(distances).to(x)
 
 class GaussianModel:
 
@@ -132,7 +137,7 @@ class GaussianModel:
 
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
 
-        dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
+        dist2 = (knn(torch.from_numpy(np.asarray(pcd.points)).float().cuda())[:, 1:] ** 2).mean(dim=-1)
         scales = torch.log(torch.sqrt(dist2)*0.1)[...,None].repeat(1, 3)
         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
         rots[:, 0] = 1
@@ -446,16 +451,10 @@ class GaussianModel:
 
     
     def _update_params(self, idxs, ratio):
-        new_opacity, new_scaling = compute_relocation_cuda(
-            opacity_old=self.get_opacity[idxs, 0],
-            scale_old=self.get_scaling[idxs],
-            N=ratio[idxs, 0] + 1
-        )
+        new_opacity = 1.0 - torch.pow(1.0 - self.get_opacity[idxs, 0], 1.0/(ratio+1))
         new_opacity = torch.clamp(new_opacity.unsqueeze(-1), max=1.0 - torch.finfo(torch.float32).eps, min=0.005)
         new_opacity = self.inverse_opacity_activation(new_opacity)
-        new_scaling = self.scaling_inverse_activation(new_scaling.reshape(-1, 3))
-
-        return self._xyz[idxs], self._features_dc[idxs], self._features_rest[idxs], new_opacity, new_scaling, self._rotation[idxs]
+        return self._xyz[idxs], self._features_dc[idxs], self._features_rest[idxs], new_opacity, self._scaling[idxs], self._rotation[idxs]
 
 
     def _sample_alives(self, probs, num, alive_indices=None):
@@ -463,7 +462,7 @@ class GaussianModel:
         sampled_idxs = torch.multinomial(probs, num, replacement=True)
         if alive_indices is not None:
             sampled_idxs = alive_indices[sampled_idxs]
-        ratio = torch.bincount(sampled_idxs).unsqueeze(-1)
+        ratio = torch.bincount(sampled_idxs)[sampled_idxs]
         return sampled_idxs, ratio
     
 

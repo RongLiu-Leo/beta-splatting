@@ -11,7 +11,6 @@
 
 import torch
 import math
-from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from gsplat.rendering import rasterization 
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
