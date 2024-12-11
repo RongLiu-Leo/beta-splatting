@@ -467,7 +467,7 @@ class GaussianModel:
     
 
     def relocate_gs(self, dead_mask=None):
-
+        print(f"Relocate: {dead_mask.sum().item()}")
         if dead_mask.sum() == 0:
             return
 
@@ -501,6 +501,7 @@ class GaussianModel:
         current_num_points = self._opacity.shape[0]
         target_num = min(cap_max, int(1.05 * current_num_points))
         num_gs = max(0, target_num - current_num_points)
+        print(f"Add: {num_gs}, Now {target_num}")
 
         if num_gs <= 0:
             return 0
