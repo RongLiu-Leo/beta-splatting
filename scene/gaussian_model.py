@@ -60,12 +60,14 @@ class GaussianModel:
         self.beta_activation = beta_activation
 
 
-    def __init__(self, sh_degree : int):
+    def __init__(self, sh_degree : int, sb_number: int):
         self.active_sh_degree = 0
-        self.max_sh_degree = sh_degree  
+        self.max_sh_degree = sh_degree
+        self.sb_number = sb_number
         self._xyz = torch.empty(0)
         self._sh0 = torch.empty(0)
         self._shN = torch.empty(0)
+        self._sb_params = torch.empty(0)
         self._scaling = torch.empty(0)
         self._rotation = torch.empty(0)
         self._opacity = torch.empty(0)
@@ -80,6 +82,7 @@ class GaussianModel:
             self._xyz,
             self._sh0,
             self._shN,
+            self._sb_params,
             self._scaling,
             self._rotation,
             self._opacity,
@@ -93,6 +96,7 @@ class GaussianModel:
         self._xyz, 
         self._sh0, 
         self._shN,
+        self._sb_params,
         self._scaling, 
         self._rotation, 
         self._opacity,
@@ -119,6 +123,10 @@ class GaussianModel:
         sh0 = self._sh0
         shN = self._shN
         return torch.cat((sh0, shN), dim=1)
+    
+    @property
+    def get_sb_params(self):
+        return self.sb_params_activation(self._sb_params)
     
     @property
     def get_opacity(self):
@@ -153,9 +161,20 @@ class GaussianModel:
         opacities = inverse_sigmoid(0.5 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
         betas = torch.zeros_like(opacities)
 
+        # [r, g, b, theta, phi, beta]
+        sb_params = torch.zeros((fused_point_cloud.shape[0], self.sb_number, 6), device="cuda")
+
+        # Initialize theta and phi uniformly across the sphere for each primitive and view-dependent parameter
+        theta = torch.pi * torch.rand(fused_point_cloud.shape[0], self.sb_number)  # Uniform in [0, pi]
+        phi = 2 * torch.pi * torch.rand(fused_point_cloud.shape[0], self.sb_number)  # Uniform in [0, 2pi]
+
+        sb_params[:, :, 3] = theta
+        sb_params[:, :, 4] = phi
+
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
         self._sh0 = nn.Parameter(shs[:,:,0:1].transpose(1, 2).contiguous().requires_grad_(True))
         self._shN = nn.Parameter(shs[:,:,1:].transpose(1, 2).contiguous().requires_grad_(True))
+        self._sb_params = nn.Parameter(sb_params.requires_grad_(True))
         self._scaling = nn.Parameter(scales.requires_grad_(True))
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
@@ -166,6 +185,7 @@ class GaussianModel:
             {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
             {'params': [self._sh0], 'lr': training_args.sh_lr, "name": "sh0"},
             {'params': [self._shN], 'lr': training_args.sh_lr / 20.0, "name": "shN"},
+            {'params': [self._sb_params], 'lr': training_args.sb_params_lr, "name": "sb_params"},
             {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
             {'params': [self._beta], 'lr': training_args.beta_lr, "name": "beta"},
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
@@ -193,6 +213,8 @@ class GaussianModel:
             l.append('sh0_{}'.format(i))
         for i in range(self._shN.shape[1]*self._shN.shape[2]):
             l.append('shN_{}'.format(i))
+        for i in range(self._sb_params.shape[1] * self._sb_params.shape[2]):
+            l.append('sb_params_{}'.format(i))
         l.append('opacity')
         l.append('beta')
         for i in range(self._scaling.shape[1]):
@@ -208,6 +230,7 @@ class GaussianModel:
         normals = np.zeros_like(xyz)
         sh0 = self._sh0.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         shN = self._shN.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
+        sb_params = self._sb_params.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
         betas = self._beta.detach().cpu().numpy()
         scale = self._scaling.detach().cpu().numpy()
@@ -216,7 +239,7 @@ class GaussianModel:
         dtype_full = [(attribute, 'f4') for attribute in self.construct_list_of_attributes()]
 
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
-        attributes = np.concatenate((xyz, normals, sh0, shN, opacities, betas, scale, rotation), axis=1)
+        attributes = np.concatenate((xyz, normals, sh0, shN, sb_params, opacities, betas, scale, rotation), axis=1)
         elements[:] = list(map(tuple, attributes))
         el = PlyElement.describe(elements, 'vertex')
         PlyData([el]).write(path)
@@ -244,6 +267,14 @@ class GaussianModel:
         # Reshape (P,F*SH_coeffs) to (P, F, SH_coeffs except DC)
         shs_extra = shs_extra.reshape((shs_extra.shape[0], 3, (self.max_sh_degree + 1) ** 2 - 1))
 
+        extra_f_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("sb_params_")]
+        extra_f_names = sorted(extra_f_names, key = lambda x: int(x.split('_')[-1]))
+        assert len(extra_f_names) == self.sb_number * 6
+        sb_params = np.zeros((xyz.shape[0], len(extra_f_names)))
+        for idx, attr_name in enumerate(extra_f_names):
+            sb_params[:, idx] = np.asarray(plydata.elements[0][attr_name])
+        sb_params = sb_params.reshape((sb_params.shape[0], self.sb_number, 6))
+
         scale_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("scale_")]
         scale_names = sorted(scale_names, key = lambda x: int(x.split('_')[-1]))
         scales = np.zeros((xyz.shape[0], len(scale_names)))
@@ -259,6 +290,7 @@ class GaussianModel:
         self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True))
         self._sh0 = nn.Parameter(torch.tensor(sh0, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
         self._shN = nn.Parameter(torch.tensor(shs_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
+        self._sb_params = nn.Parameter(torch.tensor(sb_params, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
         self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(True))
         self._beta = nn.Parameter(torch.tensor(betas, dtype=torch.float, device="cuda").requires_grad_(True))
         self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(True))
@@ -321,10 +353,11 @@ class GaussianModel:
 
         return optimizable_tensors
 
-    def densification_postfix(self, new_xyz, new_sh0, new_shN, new_opacities, new_betas, new_scaling, new_rotation, reset_params=True):
+    def densification_postfix(self, new_xyz, new_sh0, new_shN, new_sb_params, new_opacities, new_betas, new_scaling, new_rotation, reset_params=True):
         d = {"xyz": new_xyz,
         "sh0": new_sh0,
         "shN": new_shN,
+        "sb_params": new_sb_params,
         "opacity": new_opacities,
         "beta": new_betas,
         "scaling" : new_scaling,
@@ -334,6 +367,7 @@ class GaussianModel:
         self._xyz = optimizable_tensors["xyz"]
         self._sh0 = optimizable_tensors["sh0"]
         self._shN = optimizable_tensors["shN"]
+        self._sb_params = optimizable_tensors["sb_params"]
         self._opacity = optimizable_tensors["opacity"]
         self._beta = optimizable_tensors["beta"]
         self._scaling = optimizable_tensors["scaling"]
@@ -343,6 +377,7 @@ class GaussianModel:
         tensors_dict = {"xyz": self._xyz,
             "sh0": self._sh0,
             "shN": self._shN,
+            "sb_params": self._sb_params,
             "opacity": self._opacity,
             "beta": self._beta,
             "scaling" : self._scaling,
@@ -370,6 +405,7 @@ class GaussianModel:
         self._xyz = optimizable_tensors["xyz"]
         self._sh0 = optimizable_tensors["sh0"]
         self._shN = optimizable_tensors["shN"]
+        self._sb_params = optimizable_tensors["sb_params"]
         self._opacity = optimizable_tensors["opacity"]
         self._beta = optimizable_tensors["beta"]
         self._scaling = optimizable_tensors["scaling"]
@@ -382,7 +418,7 @@ class GaussianModel:
         new_opacity = 1.0 - torch.pow(1.0 - self.get_opacity[idxs, 0], 1.0/(ratio+1))
         new_opacity = torch.clamp(new_opacity.unsqueeze(-1), max=1.0 - torch.finfo(torch.float32).eps, min=0.005)
         new_opacity = self.inverse_opacity_activation(new_opacity)
-        return self._xyz[idxs], self._sh0[idxs], self._shN[idxs], new_opacity, self._beta[idxs], self._scaling[idxs], self._rotation[idxs]
+        return self._xyz[idxs], self._sh0[idxs], self._shN[idxs], self._sb_params[idxs], new_opacity, self._beta[idxs], self._scaling[idxs], self._rotation[idxs]
 
 
     def _sample_alives(self, probs, num, alive_indices=None):
@@ -414,6 +450,7 @@ class GaussianModel:
             self._xyz[dead_indices], 
             self._sh0[dead_indices],
             self._shN[dead_indices],
+            self._sb_params[dead_indices],
             self._opacity[dead_indices],
             self._beta[dead_indices],
             self._scaling[dead_indices],
@@ -441,6 +478,7 @@ class GaussianModel:
             new_xyz, 
             new_sh0,
             new_shN,
+            new_sb_params,
             new_opacity,
             new_beta,
             new_scaling,
@@ -449,7 +487,7 @@ class GaussianModel:
 
         self._opacity[add_idx] = new_opacity
 
-        self.densification_postfix(new_xyz, new_sh0, new_shN, new_opacity, new_beta, new_scaling, new_rotation, reset_params=False)
+        self.densification_postfix(new_xyz, new_sh0, new_shN, new_sb_params, new_opacity, new_beta, new_scaling, new_rotation, reset_params=False)
         self.replace_tensors_to_optimizer(inds=add_idx)
 
         return num_gs

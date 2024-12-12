@@ -42,6 +42,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
     # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
     shs = pc.get_shs
+    sb_params = pc.get_sb_params
     
     # Convert OpenGL 4x4 projection matrix to 3x3 intrinsic matrix format
     K = torch.zeros((3,3), device=viewpoint_camera.projection_matrix.device)
@@ -71,6 +72,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         render_mode="RGB",
         covars=cov3D_precomp,
         sh_degree=pc.active_sh_degree,
+        sb_number=pc.sb_number,
+        sb_params=sb_params,
         packed=False,
     )
     
