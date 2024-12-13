@@ -230,7 +230,7 @@ class GaussianModel:
         normals = np.zeros_like(xyz)
         sh0 = self._sh0.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         shN = self._shN.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
-        sb_params = self._sb_params.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
+        sb_params = self._sb_params.detach().flatten(start_dim=1).contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
         betas = self._beta.detach().cpu().numpy()
         scale = self._scaling.detach().cpu().numpy()
