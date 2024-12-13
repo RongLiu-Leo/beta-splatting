@@ -230,7 +230,7 @@ class GaussianModel:
         normals = np.zeros_like(xyz)
         sh0 = self._sh0.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         shN = self._shN.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
-        sb_params = self._sb_params.detach().flatten(start_dim=1).contiguous().cpu().numpy()
+        sb_params = self._sb_params.transpose(1, 2).detach().flatten(start_dim=1).contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
         betas = self._beta.detach().cpu().numpy()
         scale = self._scaling.detach().cpu().numpy()
@@ -273,7 +273,7 @@ class GaussianModel:
         sb_params = np.zeros((xyz.shape[0], len(extra_f_names)))
         for idx, attr_name in enumerate(extra_f_names):
             sb_params[:, idx] = np.asarray(plydata.elements[0][attr_name])
-        sb_params = sb_params.reshape((sb_params.shape[0], self.sb_number, 6))
+        sb_params = sb_params.reshape((sb_params.shape[0], 6, self.sb_number))
 
         scale_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("scale_")]
         scale_names = sorted(scale_names, key = lambda x: int(x.split('_')[-1]))
