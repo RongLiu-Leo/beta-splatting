@@ -55,10 +55,10 @@ if not args.skip_training:
     common_args = f" --quiet --eval --test_iterations -1 --init_type sfm"
     for scene in mipnerf360_outdoor_scenes:
         source = args.mipnerf360 + "/" + scene
-        os.system(f"python train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
+        os.system(f"python train.py -s " + source + " -r 4 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
     for scene in mipnerf360_indoor_scenes:
         source = args.mipnerf360 + "/" + scene
-        os.system(f"python train.py -s " + source + " -i images_2 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
+        os.system(f"python train.py -s " + source + " -r 2 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
     # for scene in tanks_and_temples_scenes:
     #     source = args.tanksandtemples + "/" + scene
     #     os.system("python train.py -s " + source + " -m " + args.output_path + "/" + scene + common_args)
