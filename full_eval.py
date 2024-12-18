@@ -11,6 +11,9 @@
 
 import os
 from argparse import ArgumentParser
+import json
+import numpy as np
+import pandas as pd
 
 cap_max = {
     "bicycle": 6_000_000, 
@@ -52,10 +55,10 @@ if not args.skip_training:
     common_args = f" --quiet --eval --test_iterations -1 --init_type sfm"
     for scene in mipnerf360_outdoor_scenes:
         source = args.mipnerf360 + "/" + scene
-        os.system(f"python train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
+        os.system(f"python train.py -s " + source + " -r 4 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
     for scene in mipnerf360_indoor_scenes:
         source = args.mipnerf360 + "/" + scene
-        os.system(f"python train.py -s " + source + " -i images_2 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
+        os.system(f"python train.py -s " + source + " -r 2 -m " + args.output_path + "/" + scene + f" --cap_max {cap_max[scene]}" + common_args)
     # for scene in tanks_and_temples_scenes:
     #     source = args.tanksandtemples + "/" + scene
     #     os.system("python train.py -s " + source + " -m " + args.output_path + "/" + scene + common_args)
@@ -83,5 +86,35 @@ if not args.skip_metrics:
     scenes_string = ""
     for scene in all_scenes:
         scenes_string += "\"" + args.output_path + "/" + scene + "\" "
-
     os.system("python metrics.py -m " + scenes_string)
+
+    all_metrics = []
+    
+    # Collect metrics for each scene
+    for scene in all_scenes:
+        scene_path = os.path.join(args.output_path, scene)
+        results_file = os.path.join(scene_path, 'results.json')
+        
+        with open(results_file, 'r') as f:
+            scene_metrics = json.load(f)['ours_best']
+        
+        scene_metrics['Scene'] = scene
+        all_metrics.append(scene_metrics)
+    
+    # Create DataFrame for easy manipulation
+    df = pd.DataFrame(all_metrics)
+
+    cols = ['Scene', 'PSNR', 'SSIM', 'LPIPS']
+    df = df[cols]
+    
+    # Compute mean row
+    mean_row = df.drop('Scene', axis=1).mean()
+    mean_row['Scene'] = 'Mean'
+    df = pd.concat([df, pd.DataFrame([mean_row])])
+    
+    # Generate markdown table
+    md_table = df.to_markdown(index=False, floatfmt='.4f')
+    
+    # Save to metrics.txt
+    with open(os.path.join(args.output_path, "metrics.txt"), 'w') as f:
+        f.write(md_table)

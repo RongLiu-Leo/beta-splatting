@@ -37,7 +37,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         exit()
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = GaussianModel(dataset.sh_degree)
+    gaussians = GaussianModel(dataset.sh_degree, dataset.sb_number)
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
     if checkpoint:
@@ -112,7 +112,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             # Progress bar
             ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
             if iteration % 10 == 0:
-                progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}"})
+                progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}", "Beta":f"{gaussians._beta.mean().item():.2f}"})
                 progress_bar.update(10)
             if iteration == opt.iterations:
                 progress_bar.close()
@@ -130,17 +130,17 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 gaussians.relocate_gs(dead_mask=dead_mask)
                 gaussians.add_new_gs(cap_max=args.cap_max)
 
-            # Optimizer step
-            if iteration < opt.iterations:
-                gaussians.optimizer.step()
-                gaussians.optimizer.zero_grad(set_to_none = True)
-
                 L = build_scaling_rotation(gaussians.get_scaling, gaussians.get_rotation)
                 actual_covariance = L @ L.transpose(1, 2)
                 
                 noise = torch.randn_like(gaussians._xyz) * (torch.pow(gaussians.get_opacity - 1, 100))*args.noise_lr*xyz_lr
                 noise = torch.bmm(actual_covariance, noise.unsqueeze(-1)).squeeze(-1)
                 gaussians._xyz.add_(noise)
+
+            # Optimizer step
+            if iteration < opt.iterations:
+                gaussians.optimizer.step()
+                gaussians.optimizer.zero_grad(set_to_none = True)
 
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))

@@ -46,7 +46,8 @@ class ParamGroup:
 
 class ModelParams(ParamGroup): 
     def __init__(self, parser, sentinel=False):
-        self.sh_degree = 3
+        self.sh_degree = 0
+        self.sb_number = 2
         self._source_path = ""
         self._model_path = ""
         self._images = "images"
@@ -55,7 +56,7 @@ class ModelParams(ParamGroup):
         self.data_device = "cuda"
         self.eval = False
         self.cap_max = -1
-        self.init_type = "random"
+        self.init_type = "sfm"
         super().__init__(parser, "Loading Parameters", sentinel)
 
     def extract(self, args):
@@ -77,19 +78,18 @@ class OptimizationParams(ParamGroup):
         self.position_lr_final = 0.0000016
         self.position_lr_delay_mult = 0.01
         self.position_lr_max_steps = 30_000
-        self.feature_lr = 0.0025
+        self.sh_lr = 0.0025
+        self.sb_params_lr = 0.0025
         self.opacity_lr = 0.05
+        self.beta_lr = 0.001
         self.scaling_lr = 0.005
         self.rotation_lr = 0.001
-        self.percent_dense = 0.01
         self.lambda_dssim = 0.2
         self.densification_interval = 100
-        self.opacity_reset_interval = 3000
         self.densify_from_iter = 500
         self.densify_until_iter = 25_000
-        self.densify_grad_threshold = 0.0002
         self.random_background = False
-        self.noise_lr = 5e5
+        self.noise_lr = 5e4
         self.scale_reg = 0.01
         self.opacity_reg = 0.01
         super().__init__(parser, "Optimization Parameters")
