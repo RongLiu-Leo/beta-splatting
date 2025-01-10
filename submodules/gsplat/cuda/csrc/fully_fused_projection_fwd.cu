@@ -144,12 +144,12 @@ __global__ void fully_fused_projection_fwd_kernel(
     mat2<T> covar2d_inv;
     inverse(covar2d, covar2d_inv);
 
-    // take 3 sigma as the radius (non differentiable)
+    // take 1 sigma as the radius (non differentiable)
     T b = 0.5f * (covar2d[0][0] + covar2d[1][1]);
     T v1 = b + sqrt(max(0.01f, b * b - det));
-    T radius = ceil(3.f * sqrt(v1));
+    T radius = ceil(sqrt(v1));
     // T v2 = b - sqrt(max(0.1f, b * b - det));
-    // T radius = ceil(3.f * sqrt(max(v1, v2)));
+    // T radius = ceil(sqrt(max(v1, v2)));
 
     if (radius <= radius_clip) {
         radii[idx] = 0;
