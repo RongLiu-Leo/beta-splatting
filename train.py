@@ -18,7 +18,7 @@ from random import randint
 import torchvision
 from utils.loss_utils import l1_loss
 from fused_ssim import fused_ssim
-from gaussian_renderer import render, network_gui
+from gaussian_renderer import render
 import sys
 from scene import Scene, GaussianModel
 from utils.general_utils import safe_state
@@ -97,7 +97,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                 progress_bar.close()
 
             # Log and save
-            if iteration % 500 == 0 and iteration > 15_000 and dataset.eval:
+            if iteration % 500 == 0 and iteration >= 15_000 and dataset.eval:
                 save_best_model(scene, render, (pipe, background))
 
             if (iteration in saving_iterations):
