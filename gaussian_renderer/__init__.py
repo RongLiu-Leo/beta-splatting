@@ -79,15 +79,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     
     # # Convert from N,H,W,C to N,C,H,W format
     rgbs = rgbs.permute(0, 3, 1, 2).contiguous()[0]
-
-    # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
-    # They will be excluded from value updates used in the splitting criteria.
-    # return {"render": rendered_image,
-    #     "viewspace_points": screenspace_points,
-    #     "visibility_filter" : radii > 0,
-    #     "radii": radii,
-    #     "is_used": is_used}
-
     
     return {"render": rgbs,
             "viewspace_points": meta["means2d"],

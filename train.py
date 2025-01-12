@@ -10,9 +10,12 @@
 #
 
 import os
+from os import makedirs
 import json
 import torch
 from random import randint
+
+import torchvision
 from utils.loss_utils import l1_loss
 from fused_ssim import fused_ssim
 from gaussian_renderer import render, network_gui
@@ -22,21 +25,15 @@ from utils.general_utils import safe_state
 import uuid
 from tqdm import tqdm
 from utils.image_utils import psnr
+from lpipsPyTorch import lpips
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
 from scene.gaussian_model import build_scaling_rotation
-try:
-    from torch.utils.tensorboard import SummaryWriter
-    TENSORBOARD_FOUND = True
-except ImportError:
-    TENSORBOARD_FOUND = False
 
-def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
-    if dataset.cap_max == -1:
-        print("Please specify the maximum number of Gaussians using --cap_max.")
-        exit()
+def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, checkpoint):
+
     first_iter = 0
-    tb_writer = prepare_output_and_logger(dataset)
+    prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree, dataset.sb_number)
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
@@ -56,21 +53,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     first_iter += 1
 
     for iteration in range(first_iter, opt.iterations + 1):        
-        if network_gui.conn == None:
-            network_gui.try_connect()
-        while network_gui.conn != None:
-            try:
-                net_image_bytes = None
-                custom_cam, do_training, pipe.convert_SHs_python, pipe.compute_cov3D_python, keep_alive, scaling_modifer = network_gui.receive()
-                if custom_cam != None:
-                    net_image = render(custom_cam, gaussians, pipe, background, scaling_modifer)["render"]
-                    net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
-                network_gui.send(net_image_bytes, dataset.source_path)
-                if do_training and ((iteration < int(opt.iterations)) or not keep_alive):
-                    break
-            except Exception as e:
-                # raise e
-                network_gui.conn = None
 
         iter_start.record()
 
@@ -88,9 +70,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
 
         # Render
-        if (iteration - 1) == debug_from:
-            pipe.debug = True
-
         bg = torch.rand((3), device="cuda") if opt.random_background else background
 
         render_pkg = render(viewpoint_cam, gaussians, pipe, bg)
@@ -118,9 +97,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
-            if iteration % 500 == 0 and iteration > 15_000:
+            if iteration % 500 == 0 and iteration > 15_000 and dataset.eval:
                 save_best_model(scene, render, (pipe, background))
-            training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
+
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
@@ -133,7 +112,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 L = build_scaling_rotation(gaussians.get_scaling, gaussians.get_rotation)
                 actual_covariance = L @ L.transpose(1, 2)
                 
-                noise = torch.randn_like(gaussians._xyz) * (torch.pow(gaussians.get_opacity - 1, 100))*args.noise_lr*xyz_lr
+                noise = torch.randn_like(gaussians._xyz) * (torch.pow(1 - gaussians.get_opacity, 100)) * args.noise_lr * xyz_lr
                 noise = torch.bmm(actual_covariance, noise.unsqueeze(-1)).squeeze(-1)
                 gaussians._xyz.add_(noise)
 
@@ -146,6 +125,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
 
+    if dataset.eval:
+        print("\nEvaluating Best Model Performance\n")
+        eval(Scene(dataset, gaussians, "best"), render, (pipe, background))
+
 def prepare_output_and_logger(args):    
     if not args.model_path:
         args.model_path = os.path.join("./output/", os.path.basename(args.source_path))
@@ -156,14 +139,6 @@ def prepare_output_and_logger(args):
     with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
         cfg_log_f.write(str(Namespace(**vars(args))))
 
-    # Create Tensorboard writer
-    tb_writer = None
-    if TENSORBOARD_FOUND:
-        tb_writer = SummaryWriter(args.model_path)
-    else:
-        print("Tensorboard not available: not logging progress")
-    return tb_writer
-
 def save_best_model(scene : Scene, renderFunc, renderArgs):
     torch.cuda.empty_cache()
     psnr_test = 0.0
@@ -171,7 +146,7 @@ def save_best_model(scene : Scene, renderFunc, renderArgs):
     for idx, viewpoint in enumerate(test_view_stack):
         image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0)
         gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-        psnr_test += psnr(image, gt_image).mean().double()
+        psnr_test += psnr(image, gt_image).mean()
     psnr_test /= len(test_view_stack)
     if psnr_test > scene.best_psnr:
         print(f"save best model. PSNR: {psnr_test}")
@@ -179,47 +154,39 @@ def save_best_model(scene : Scene, renderFunc, renderArgs):
         scene.best_psnr = psnr_test
     torch.cuda.empty_cache()
 
-def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
-    if tb_writer:
-        tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
-        tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
-        tb_writer.add_scalar('iter_time', elapsed, iteration)
-
-    # Report test and samples of training set
-    if iteration in testing_iterations:
+def eval(scene : Scene, renderFunc, renderArgs):
+    gt_path = os.path.join(args.model_path, "point_cloud/iteration_best/gt")
+    render_path = os.path.join(args.model_path, "point_cloud/iteration_best/render")
+    makedirs(gt_path, exist_ok=True)
+    makedirs(render_path, exist_ok=True)
+    with torch.no_grad():
         torch.cuda.empty_cache()
-        validation_configs = ({'name': 'test', 'cameras' : scene.getTestCameras()}, 
-                              {'name': 'train', 'cameras' : [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(5, 30, 5)]})
-
-        for config in validation_configs:
-            if config['cameras'] and len(config['cameras']) > 0:
-                l1_test = 0.0
-                psnr_test = 0.0
-                for idx, viewpoint in enumerate(config['cameras']):
-                    image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0)
-                    gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-                    if tb_writer and (idx < 5):
-                        tb_writer.add_images(config['name'] + "_view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
-                        if iteration == testing_iterations[0]:
-                            tb_writer.add_images(config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image[None], global_step=iteration)
-                    l1_test += l1_loss(image, gt_image).mean().double()
-                    psnr_test += psnr(image, gt_image).mean().double()
-                psnr_test /= len(config['cameras'])
-                l1_test /= len(config['cameras'])          
-                print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))
-                if tb_writer:
-                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
-                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
-
-        if tb_writer:
-            tb_writer.add_histogram("scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
-            tb_writer.add_scalar('total_points', scene.gaussians.get_xyz.shape[0], iteration)
+        psnr_test = 0.0
+        ssim_test = 0.0
+        lpips_test = 0.0
+        test_view_stack = scene.getTestCameras()
+        for idx, viewpoint in enumerate(test_view_stack):
+            image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0)
+            gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+            torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
+            torchvision.utils.save_image(gt_image, os.path.join(gt_path, '{0:05d}'.format(idx) + ".png"))
+            psnr_test += psnr(image, gt_image).mean()
+            ssim_test += fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0)).mean()
+            lpips_test += lpips(image, gt_image, net_type='vgg').mean()
+        psnr_test /= len(test_view_stack)
+        ssim_test /= len(test_view_stack)
+        lpips_test /= len(test_view_stack)
         torch.cuda.empty_cache()
 
-def load_config(config_file):
-    with open(config_file, 'r') as file:
-        config = json.load(file)
-    return config
+        result = {
+            "ours_best": {
+                "SSIM": ssim_test.item(),
+                "PSNR": psnr_test.item(),
+                "LPIPS": lpips_test.item()
+            }
+        }
+        with open(os.path.join(args.model_path, "point_cloud/iteration_best/metrics.json"), "w") as f:
+            json.dump(result, f, indent=True)
 
 if __name__ == "__main__":
     # Set up command line argument parser
@@ -229,34 +196,19 @@ if __name__ == "__main__":
     pp = PipelineParams(parser)
     parser.add_argument('--ip', type=str, default="127.0.0.1")
     parser.add_argument('--port', type=int, default=6009)
-    parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--debug_from', type=int, default=-1)
-    parser.add_argument('--detect_anomaly', action='store_true', default=False)
-    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[30_000])
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
     args = parser.parse_args(sys.argv[1:])
     
-    if args.config is not None:
-        # Load the configuration file
-        config = load_config(args.config)
-        # Set the configuration parameters on args, if they are not already set by command line arguments
-        for key, value in config.items():
-            setattr(args, key, value)
-
     args.save_iterations.append(args.iterations)
     
     print("Optimizing " + args.model_path)
 
-    # Initialize system state (RNG)
     safe_state(args.quiet)
 
-    # Start GUI server, configure and run training
-    network_gui.init(args.ip, args.port)
-    torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
+    training(lp.extract(args), op.extract(args), pp.extract(args), args.save_iterations, args.checkpoint_iterations, args.start_checkpoint)
 
     # All done
     print("\nTraining complete.")
