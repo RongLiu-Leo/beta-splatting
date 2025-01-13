@@ -24,6 +24,16 @@ mipnerf360_outdoor_scenes = ["bicycle", "flowers", "garden", "stump", "treehill"
 mipnerf360_indoor_scenes = ["room", "counter", "kitchen", "bonsai"]
 tanks_and_temples_scenes = ["truck", "train"]
 deep_blending_scenes = ["drjohnson", "playroom"]
+nerf_synthetic_scenes = [
+    "chair",
+    "drums",
+    "ficus",
+    "hotdog",
+    "lego",
+    "materials",
+    "mic",
+    "ship",
+]
 
 parser = ArgumentParser(description="Full evaluation script parameters")
 parser.add_argument("--output_path", default="./eval")
@@ -35,6 +45,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--deepblending", "-db", type=str, help="Path to Deep Blending dataset"
+)
+parser.add_argument(
+    "--nerfsynthetic", "-ns", type=str, help="Path to NeRF Synthetic dataset"
 )
 args = parser.parse_args()
 
@@ -136,4 +149,27 @@ if args.deepblending:
 
     output_text = create_markdown_table(db_metrics, "Deep Blending")
     with open(os.path.join(args.output_path, "deepblending_metrics.txt"), "w") as f:
+        f.write(output_text)
+
+# Process Deep Blending dataset if provided
+if args.nerfsynthetic:
+    nf_metrics = []
+    for scene in nerf_synthetic_scenes:
+        source = os.path.join(args.nerfsynthetic, scene)
+        os.system(
+            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max 300000 --eval -w"
+        )
+
+    for scene in deep_blending_scenes:
+        scene_path = os.path.join(args.output_path, scene)
+        results_file = os.path.join(
+            scene_path, "point_cloud/iteration_best/metrics.json"
+        )
+        with open(results_file, "r") as f:
+            scene_metrics = json.load(f)["ours_best"]
+        scene_metrics["Scene"] = scene
+        nf_metrics.append(scene_metrics)
+
+    output_text = create_markdown_table(nf_metrics, "NeRF Synthetic")
+    with open(os.path.join(args.output_path, "nerf_synthetic_metrics.txt"), "w") as f:
         f.write(output_text)

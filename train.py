@@ -106,7 +106,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
             if iteration % 500 == 0 and iteration >= 15_000 and dataset.eval:
                 save_best_model(scene, render, (pipe, background))
 
-            if iteration in saving_iterations:
+            if iteration in saving_iterations and not dataset.eval:
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
 
@@ -145,9 +145,12 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                     scene.model_path + "/chkpnt" + str(iteration) + ".pth",
                 )
 
+    print("\nTraining complete.\n")
+
     if dataset.eval:
         print("\nEvaluating Best Model Performance\n")
-        eval(Scene(dataset, gaussians, "best"), render, (pipe, background))
+        scene = Scene(dataset, gaussians, "best")
+        eval(scene, render, (pipe, background))
 
 
 def prepare_output_and_logger(args):
@@ -180,8 +183,8 @@ def save_best_model(scene: Scene, renderFunc, renderArgs):
 
 
 def eval(scene: Scene, renderFunc, renderArgs):
-    gt_path = os.path.join(args.model_path, "point_cloud/iteration_best/gt")
-    render_path = os.path.join(args.model_path, "point_cloud/iteration_best/render")
+    gt_path = os.path.join(scene.model_path, "point_cloud/iteration_best/gt")
+    render_path = os.path.join(scene.model_path, "point_cloud/iteration_best/render")
     makedirs(gt_path, exist_ok=True)
     makedirs(render_path, exist_ok=True)
     with torch.no_grad():
@@ -190,7 +193,7 @@ def eval(scene: Scene, renderFunc, renderArgs):
         ssim_test = 0.0
         lpips_test = 0.0
         test_view_stack = scene.getTestCameras()
-        for idx, viewpoint in enumerate(test_view_stack):
+        for idx, viewpoint in tqdm(enumerate(test_view_stack)):
             image = torch.clamp(
                 renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0
             )
@@ -217,7 +220,7 @@ def eval(scene: Scene, renderFunc, renderArgs):
             }
         }
         with open(
-            os.path.join(args.model_path, "point_cloud/iteration_best/metrics.json"),
+            os.path.join(scene.model_path, "point_cloud/iteration_best/metrics.json"),
             "w",
         ) as f:
             json.dump(result, f, indent=True)
@@ -251,6 +254,3 @@ if __name__ == "__main__":
         args.checkpoint_iterations,
         args.start_checkpoint,
     )
-
-    # All done
-    print("\nTraining complete.")
