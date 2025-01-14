@@ -537,6 +537,11 @@ class GaussianModel:
         for group in self.optimizer.param_groups:
             assert len(group["params"]) == 1
             tensor = tensors_dict[group["name"]]
+            
+            if tensor.numel() == 0:
+                optimizable_tensors[group["name"]] = group["params"][0]
+                continue
+
             stored_state = self.optimizer.state.get(group["params"][0], None)
 
             if inds is not None:

@@ -160,7 +160,7 @@ if args.nerfsynthetic:
             f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max 300000 --eval -w"
         )
 
-    for scene in deep_blending_scenes:
+    for scene in nerf_synthetic_scenes:
         scene_path = os.path.join(args.output_path, scene)
         results_file = os.path.join(
             scene_path, "point_cloud/iteration_best/metrics.json"
