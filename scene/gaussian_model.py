@@ -716,37 +716,36 @@ class GaussianModel:
             "is_used": meta["radii"] > 0,
         }
 
-    with torch.no_grad():
+    @torch.no_grad()
+    def view(self, camera_state, img_wh, render_mode):
+        """Callable function for the viewer."""
+        W, H = img_wh
+        c2w = camera_state.c2w
+        K = camera_state.get_K(img_wh)
+        c2w = torch.from_numpy(c2w).float().to("cuda")
+        K = torch.from_numpy(K).float().to("cuda")
 
-        def view(self, camera_state, img_wh, render_mode):
-            """Callable function for the viewer."""
-            W, H = img_wh
-            c2w = camera_state.c2w
-            K = camera_state.get_K(img_wh)
-            c2w = torch.from_numpy(c2w).float().to("cuda")
-            K = torch.from_numpy(K).float().to("cuda")
+        render_colors = rasterization(
+            means=self.get_xyz,
+            quats=self.get_rotation,
+            scales=self.get_scaling,
+            opacities=self.get_opacity.squeeze(),
+            betas=self.get_beta.squeeze(),
+            colors=self.get_shs,
+            viewmats=torch.linalg.inv(c2w).unsqueeze(0),
+            Ks=K.unsqueeze(0),
+            width=W,
+            height=H,
+            backgrounds=self.background.unsqueeze(0),
+            render_mode=render_mode,
+            covars=None,
+            sh_degree=self.active_sh_degree,
+            sb_number=self.sb_number,
+            sb_params=self.get_sb_params,
+            packed=False,
+        )[0]
 
-            render_colors = rasterization(
-                means=self.get_xyz,
-                quats=self.get_rotation,
-                scales=self.get_scaling,
-                opacities=self.get_opacity.squeeze(),
-                betas=self.get_beta.squeeze(),
-                colors=self.get_shs,
-                viewmats=torch.linalg.inv(c2w).unsqueeze(0),
-                Ks=K.unsqueeze(0),
-                width=W,
-                height=H,
-                backgrounds=self.background.unsqueeze(0),
-                render_mode=render_mode,
-                covars=None,
-                sh_degree=self.active_sh_degree,
-                sb_number=self.sb_number,
-                sb_params=self.get_sb_params,
-                packed=False,
-            )[0]
+        if render_colors.shape[-1] == 1:
+            render_colors = apply_depth_colormap(render_colors)
 
-            if render_colors.shape[-1] == 1:
-                render_colors = apply_depth_colormap(render_colors)
-
-            return render_colors[0].detach().cpu().numpy()
+        return render_colors[0].cpu().numpy()
