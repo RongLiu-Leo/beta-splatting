@@ -18,7 +18,6 @@ from random import randint
 import torchvision
 from utils.loss_utils import l1_loss
 from fused_ssim import fused_ssim
-from gaussian_renderer import render
 import sys
 from scene import Scene, GaussianModel
 from utils.general_utils import safe_state
@@ -29,6 +28,8 @@ from lpipsPyTorch import lpips
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
 from scene.gaussian_model import build_scaling_rotation
+import viser
+import nerfview
 
 
 def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, checkpoint):
@@ -43,6 +44,20 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+
+    # server = viser.ViserServer(port=8080, verbose=False)
+    # viewer = nerfview.Viewer(
+    #     server=server,
+    #     render_fn=render(pc=gaussians, pipe=pipe, bg_color=background),
+    #     mode="training",
+    # )
+    # with server.gui.add_folder("Render Mode"):
+    #     gui_dropdown = server.gui.add_dropdown(
+    #         "Mode",
+    #         ["RGB", "Diffuse", "Specular", "Depth"],
+    #         initial_value="RGB",
+    #     )
+    #     gui_dropdown.on_update(viewer.rerender)
 
     iter_start = torch.cuda.Event(enable_timing=True)
     iter_end = torch.cuda.Event(enable_timing=True)
@@ -70,8 +85,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
         # Render
         bg = torch.rand((3), device="cuda") if opt.random_background else background
-
-        render_pkg = render(viewpoint_cam, gaussians, pipe, bg)
+        render_pkg = gaussians.render(viewpoint_cam, bg)
         image = render_pkg["render"]
 
         # Loss
@@ -104,7 +118,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
             # Log and save
             if iteration % 500 == 0 and iteration >= 15_000 and dataset.eval:
-                save_best_model(scene, render, (pipe, background))
+                save_best_model(scene, bg)
 
             if iteration in saving_iterations and not dataset.eval:
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
@@ -150,7 +164,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
     if dataset.eval:
         print("\nEvaluating Best Model Performance\n")
         scene = Scene(dataset, gaussians, "best")
-        eval(scene, render, (pipe, background))
+        eval(scene, bg)
 
 
 def prepare_output_and_logger(args):
@@ -164,13 +178,13 @@ def prepare_output_and_logger(args):
         cfg_log_f.write(str(Namespace(**vars(args))))
 
 
-def save_best_model(scene: Scene, renderFunc, renderArgs):
+def save_best_model(scene: Scene, background):
     torch.cuda.empty_cache()
     psnr_test = 0.0
     test_view_stack = scene.getTestCameras()
     for idx, viewpoint in enumerate(test_view_stack):
         image = torch.clamp(
-            renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0
+            scene.gaussians.render(viewpoint, background)["render"], 0.0, 1.0
         )
         gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
         psnr_test += psnr(image, gt_image).mean()
@@ -182,7 +196,7 @@ def save_best_model(scene: Scene, renderFunc, renderArgs):
     torch.cuda.empty_cache()
 
 
-def eval(scene: Scene, renderFunc, renderArgs):
+def eval(scene: Scene, background):
     gt_path = os.path.join(scene.model_path, "point_cloud/iteration_best/gt")
     render_path = os.path.join(scene.model_path, "point_cloud/iteration_best/render")
     makedirs(gt_path, exist_ok=True)
@@ -195,7 +209,7 @@ def eval(scene: Scene, renderFunc, renderArgs):
         test_view_stack = scene.getTestCameras()
         for idx, viewpoint in tqdm(enumerate(test_view_stack)):
             image = torch.clamp(
-                renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0
+                scene.gaussians.render(viewpoint, background)["render"], 0.0, 1.0
             )
             gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
             torchvision.utils.save_image(
