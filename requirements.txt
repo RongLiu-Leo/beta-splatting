@@ -5,7 +5,7 @@ git+https://github.com/rmbrualla/pycolmap@cc7ea4b7301720ac29287dbe450952511b3212
 
 plyfile
 viser
-nerfview==0.0.2
+git+https://github.com/hangg7/nerfview.git
 imageio[ffmpeg]
 numpy<2.0.0
 scikit-learn

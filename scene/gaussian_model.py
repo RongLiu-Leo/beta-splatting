@@ -11,7 +11,7 @@
 
 import torch
 import numpy as np
-from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation
+from utils.general_utils import inverse_sigmoid, get_expon_lr_func, apply_depth_colormap
 from torch import nn
 import os
 from utils.system_utils import mkdir_p
@@ -73,6 +73,7 @@ class GaussianModel:
         self._rotation = torch.empty(0)
         self._opacity = torch.empty(0)
         self._beta = torch.empty(0)
+        self.background = torch.empty(0)
         self.optimizer = None
         self.spatial_lr_scale = 0
         self.setup_functions()
@@ -671,31 +672,7 @@ class GaussianModel:
 
         return num_gs
 
-    def render(
-        self,
-        viewpoint_camera,
-        bg_color: torch.Tensor,
-        scaling_modifier=1.0,
-        override_color=None,
-    ):
-        means3D = self.get_xyz
-        opacity = self.get_opacity
-        beta = self.get_beta
-
-        # If precomputed 3d covariance is provided, use it. If not, then it will be computed from
-        # scaling / rotation by the rasterizer.
-        scales = None
-        rotations = None
-        cov3D_precomp = None
-
-        scales = self.get_scaling * scaling_modifier
-        rotations = self.get_rotation
-
-        # If precomputed colors are provided, use them. Otherwise, if it is desired to precompute colors
-        # from SHs in Python, do it. If not, then SH -> RGB conversion will be done by rasterizer.
-        shs = self.get_shs
-        sb_params = self.get_sb_params
-
+    def render(self, viewpoint_camera):
         # Convert OpenGL 4x4 projection matrix to 3x3 intrinsic matrix format
         K = torch.zeros((3, 3), device=viewpoint_camera.projection_matrix.device)
 
@@ -708,24 +685,23 @@ class GaussianModel:
         K[1, 2] = viewpoint_camera.image_height / 2
         K[2, 2] = 1.0
 
-        # call the gsplat renderer
         rgbs, alphas, meta = rasterization(
-            means=means3D,
-            quats=rotations,
-            scales=scales,
-            opacities=opacity.squeeze(),
-            betas=beta.squeeze(),
-            colors=shs,
+            means=self.get_xyz,
+            quats=self.get_rotation,
+            scales=self.get_scaling,
+            opacities=self.get_opacity.squeeze(),
+            betas=self.get_beta.squeeze(),
+            colors=self.get_shs,
             viewmats=viewpoint_camera.world_view_transform.transpose(0, 1).unsqueeze(0),
             Ks=K.unsqueeze(0),
             width=viewpoint_camera.image_width,
             height=viewpoint_camera.image_height,
-            backgrounds=bg_color.unsqueeze(0),
+            backgrounds=self.background.unsqueeze(0),
             render_mode="RGB",
-            covars=cov3D_precomp,
+            covars=None,
             sh_degree=self.active_sh_degree,
             sb_number=self.sb_number,
-            sb_params=sb_params,
+            sb_params=self.get_sb_params,
             packed=False,
         )
 
@@ -739,3 +715,38 @@ class GaussianModel:
             "radii": meta["radii"],
             "is_used": meta["radii"] > 0,
         }
+
+    with torch.no_grad():
+
+        def view(self, camera_state, img_wh, render_mode):
+            """Callable function for the viewer."""
+            W, H = img_wh
+            c2w = camera_state.c2w
+            K = camera_state.get_K(img_wh)
+            c2w = torch.from_numpy(c2w).float().to("cuda")
+            K = torch.from_numpy(K).float().to("cuda")
+
+            render_colors = rasterization(
+                means=self.get_xyz,
+                quats=self.get_rotation,
+                scales=self.get_scaling,
+                opacities=self.get_opacity.squeeze(),
+                betas=self.get_beta.squeeze(),
+                colors=self.get_shs,
+                viewmats=torch.linalg.inv(c2w).unsqueeze(0),
+                Ks=K.unsqueeze(0),
+                width=W,
+                height=H,
+                backgrounds=self.background.unsqueeze(0),
+                render_mode=render_mode,
+                covars=None,
+                sh_degree=self.active_sh_degree,
+                sb_number=self.sb_number,
+                sb_params=self.get_sb_params,
+                packed=False,
+            )[0]
+
+            if render_colors.shape[-1] == 1:
+                render_colors = apply_depth_colormap(render_colors)
+
+            return render_colors[0].detach().cpu().numpy()

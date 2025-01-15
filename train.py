@@ -30,6 +30,7 @@ from arguments import ModelParams, PipelineParams, OptimizationParams
 from scene.gaussian_model import build_scaling_rotation
 import viser
 import nerfview
+import time
 
 
 def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, checkpoint):
@@ -45,19 +46,22 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
-    # server = viser.ViserServer(port=8080, verbose=False)
-    # viewer = nerfview.Viewer(
-    #     server=server,
-    #     render_fn=render(pc=gaussians, pipe=pipe, bg_color=background),
-    #     mode="training",
-    # )
-    # with server.gui.add_folder("Render Mode"):
-    #     gui_dropdown = server.gui.add_dropdown(
-    #         "Mode",
-    #         ["RGB", "Diffuse", "Specular", "Depth"],
-    #         initial_value="RGB",
-    #     )
-    #     gui_dropdown.on_update(viewer.rerender)
+    if not pipe.disable_viewer:
+        server = viser.ViserServer(port=pipe.port, verbose=False)
+        viewer = nerfview.Viewer(
+            server=server,
+            render_fn=lambda camera_state, img_wh: gaussians.view(
+                camera_state, img_wh, gui_dropdown.value
+            ),
+            mode="training",
+        )
+        with server.gui.add_folder("Render Mode"):
+            gui_dropdown = server.gui.add_dropdown(
+                "Mode",
+                ["RGB", "Diffuse", "Specular", "Depth"],
+                initial_value="RGB",
+            )
+            gui_dropdown.on_update(viewer.rerender)
 
     iter_start = torch.cuda.Event(enable_timing=True)
     iter_end = torch.cuda.Event(enable_timing=True)
@@ -69,6 +73,11 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
     for iteration in range(first_iter, opt.iterations + 1):
         iter_start.record()
+        if not pipe.disable_viewer:
+            while viewer.state.status == "paused":
+                time.sleep(0.01)
+            viewer.lock.acquire()
+            tic = time.time()
 
         xyz_lr = gaussians.update_learning_rate(iteration)
 
@@ -84,8 +93,10 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
             viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack) - 1))
 
         # Render
-        bg = torch.rand((3), device="cuda") if opt.random_background else background
-        render_pkg = gaussians.render(viewpoint_cam, bg)
+        gaussians.background = (
+            torch.rand((3), device="cuda") if opt.random_background else background
+        )
+        render_pkg = gaussians.render(viewpoint_cam)
         image = render_pkg["render"]
 
         # Loss
@@ -118,7 +129,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
             # Log and save
             if iteration % 500 == 0 and iteration >= 15_000 and dataset.eval:
-                save_best_model(scene, bg)
+                save_best_model(scene)
 
             if iteration in saving_iterations and not dataset.eval:
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
@@ -159,12 +170,30 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                     scene.model_path + "/chkpnt" + str(iteration) + ".pth",
                 )
 
+            if not pipe.disable_viewer:
+                num_train_rays_per_step = (
+                    gt_image.shape[0] * gt_image.shape[1] * gt_image.shape[2]
+                )
+                # Update the scene.
+                viewer.lock.release()
+                num_train_steps_per_sec = 1.0 / (time.time() - tic + 1e-8)
+                num_train_rays_per_sec = (
+                    num_train_rays_per_step * num_train_steps_per_sec
+                )
+                # Update the viewer state.
+                viewer.state.num_train_rays_per_sec = num_train_rays_per_sec
+                viewer.update(iteration, num_train_rays_per_step)
+
     print("\nTraining complete.\n")
 
     if dataset.eval:
         print("\nEvaluating Best Model Performance\n")
         scene = Scene(dataset, gaussians, "best")
-        eval(scene, bg)
+        eval(scene)
+
+    if not pipe.disable_viewer:
+        print("Viewer running... Ctrl+C to exit.")
+        time.sleep(1000000)
 
 
 def prepare_output_and_logger(args):
@@ -178,14 +207,12 @@ def prepare_output_and_logger(args):
         cfg_log_f.write(str(Namespace(**vars(args))))
 
 
-def save_best_model(scene: Scene, background):
+def save_best_model(scene: Scene):
     torch.cuda.empty_cache()
     psnr_test = 0.0
     test_view_stack = scene.getTestCameras()
     for idx, viewpoint in enumerate(test_view_stack):
-        image = torch.clamp(
-            scene.gaussians.render(viewpoint, background)["render"], 0.0, 1.0
-        )
+        image = torch.clamp(scene.gaussians.render(viewpoint)["render"], 0.0, 1.0)
         gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
         psnr_test += psnr(image, gt_image).mean()
     psnr_test /= len(test_view_stack)
@@ -196,7 +223,7 @@ def save_best_model(scene: Scene, background):
     torch.cuda.empty_cache()
 
 
-def eval(scene: Scene, background):
+def eval(scene: Scene):
     gt_path = os.path.join(scene.model_path, "point_cloud/iteration_best/gt")
     render_path = os.path.join(scene.model_path, "point_cloud/iteration_best/render")
     makedirs(gt_path, exist_ok=True)
@@ -208,9 +235,7 @@ def eval(scene: Scene, background):
         lpips_test = 0.0
         test_view_stack = scene.getTestCameras()
         for idx, viewpoint in tqdm(enumerate(test_view_stack)):
-            image = torch.clamp(
-                scene.gaussians.render(viewpoint, background)["render"], 0.0, 1.0
-            )
+            image = torch.clamp(scene.gaussians.render(viewpoint)["render"], 0.0, 1.0)
             gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
             torchvision.utils.save_image(
                 image, os.path.join(render_path, "{0:05d}".format(idx) + ".png")
@@ -246,9 +271,7 @@ if __name__ == "__main__":
     lp = ModelParams(parser)
     op = OptimizationParams(parser)
     pp = PipelineParams(parser)
-    parser.add_argument("--ip", type=str, default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=6009)
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[30_000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default=None)
