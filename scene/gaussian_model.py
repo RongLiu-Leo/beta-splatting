@@ -672,8 +672,11 @@ class GaussianModel:
 
         return num_gs
 
-    def render(self, viewpoint_camera):
-        # Convert OpenGL 4x4 projection matrix to 3x3 intrinsic matrix format
+    def render(self, viewpoint_camera, render_mode="RGB", mask=None):
+
+        if mask == None:
+            mask = torch.ones_like(self.get_beta.squeeze()).bool()
+
         K = torch.zeros((3, 3), device=viewpoint_camera.projection_matrix.device)
 
         fx = 0.5 * viewpoint_camera.image_width / math.tan(viewpoint_camera.FoVx / 2)
@@ -686,22 +689,22 @@ class GaussianModel:
         K[2, 2] = 1.0
 
         rgbs, alphas, meta = rasterization(
-            means=self.get_xyz,
-            quats=self.get_rotation,
-            scales=self.get_scaling,
-            opacities=self.get_opacity.squeeze(),
-            betas=self.get_beta.squeeze(),
-            colors=self.get_shs,
+            means=self.get_xyz[mask],
+            quats=self.get_rotation[mask],
+            scales=self.get_scaling[mask],
+            opacities=self.get_opacity.squeeze()[mask],
+            betas=self.get_beta.squeeze()[mask],
+            colors=self.get_shs[mask],
             viewmats=viewpoint_camera.world_view_transform.transpose(0, 1).unsqueeze(0),
             Ks=K.unsqueeze(0),
             width=viewpoint_camera.image_width,
             height=viewpoint_camera.image_height,
             backgrounds=self.background.unsqueeze(0),
-            render_mode="RGB",
+            render_mode=render_mode,
             covars=None,
             sh_degree=self.active_sh_degree,
             sb_number=self.sb_number,
-            sb_params=self.get_sb_params,
+            sb_params=self.get_sb_params[mask],
             packed=False,
         )
 
@@ -717,7 +720,7 @@ class GaussianModel:
         }
 
     @torch.no_grad()
-    def view(self, camera_state, img_wh, render_mode, mask=None):
+    def view(self, camera_state, img_wh, render_mode="RGB", mask=None):
         """Callable function for the viewer."""
         W, H = img_wh
         c2w = camera_state.c2w
