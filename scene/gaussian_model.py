@@ -717,7 +717,7 @@ class GaussianModel:
         }
 
     @torch.no_grad()
-    def view(self, camera_state, img_wh, render_mode):
+    def view(self, camera_state, img_wh, render_mode, mask=None):
         """Callable function for the viewer."""
         W, H = img_wh
         c2w = camera_state.c2w
@@ -725,13 +725,16 @@ class GaussianModel:
         c2w = torch.from_numpy(c2w).float().to("cuda")
         K = torch.from_numpy(K).float().to("cuda")
 
+        if mask == None:
+            mask = torch.ones_like(self.get_beta.squeeze()).bool()
+
         render_colors = rasterization(
-            means=self.get_xyz,
-            quats=self.get_rotation,
-            scales=self.get_scaling,
-            opacities=self.get_opacity.squeeze(),
-            betas=self.get_beta.squeeze(),
-            colors=self.get_shs,
+            means=self.get_xyz[mask],
+            quats=self.get_rotation[mask],
+            scales=self.get_scaling[mask],
+            opacities=self.get_opacity.squeeze()[mask],
+            betas=self.get_beta.squeeze()[mask],
+            colors=self.get_shs[mask],
             viewmats=torch.linalg.inv(c2w).unsqueeze(0),
             Ks=K.unsqueeze(0),
             width=W,
@@ -741,7 +744,7 @@ class GaussianModel:
             covars=None,
             sh_degree=self.active_sh_degree,
             sb_number=self.sb_number,
-            sb_params=self.get_sb_params,
+            sb_params=self.get_sb_params[mask],
             packed=False,
         )[0]
 

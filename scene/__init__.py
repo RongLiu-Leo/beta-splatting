@@ -17,6 +17,11 @@ from scene.dataset_readers import sceneLoadTypeCallbacks
 from scene.gaussian_model import GaussianModel
 from arguments import ModelParams
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
+import torch
+from utils.image_utils import psnr
+from lpipsPyTorch import lpips
+from fused_ssim import fused_ssim
+from tqdm import tqdm
 
 
 class Scene:
@@ -121,3 +126,48 @@ class Scene:
 
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
+
+    @torch.no_grad()
+    def save_best_model(self):
+        psnr_test = 0.0
+        test_view_stack = self.getTestCameras()
+        for idx, viewpoint in enumerate(test_view_stack):
+            image = torch.clamp(self.gaussians.render(viewpoint)["render"], 0.0, 1.0)
+            gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+            psnr_test += psnr(image, gt_image).mean()
+        psnr_test /= len(test_view_stack)
+        if psnr_test > self.best_psnr:
+            print(f"save best model. PSNR: {psnr_test}")
+            self.save("best")
+            self.best_psnr = psnr_test
+        torch.cuda.empty_cache()
+
+    @torch.no_grad()
+    def eval(self):
+        torch.cuda.empty_cache()
+        psnr_test = 0.0
+        ssim_test = 0.0
+        lpips_test = 0.0
+        test_view_stack = self.getTestCameras()
+        for idx, viewpoint in tqdm(enumerate(test_view_stack)):
+            image = torch.clamp(self.gaussians.render(viewpoint)["render"], 0.0, 1.0)
+            gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+            psnr_test += psnr(image, gt_image).mean()
+            ssim_test += fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0)).mean()
+            lpips_test += lpips(image, gt_image, net_type="vgg").mean()
+        psnr_test /= len(test_view_stack)
+        ssim_test /= len(test_view_stack)
+        lpips_test /= len(test_view_stack)
+
+        result = {
+            "ours_best": {
+                "SSIM": ssim_test.item(),
+                "PSNR": psnr_test.item(),
+                "LPIPS": lpips_test.item(),
+            }
+        }
+        with open(
+            os.path.join(self.model_path, "point_cloud/iteration_best/metrics.json"),
+            "w",
+        ) as f:
+            json.dump(result, f, indent=True)

@@ -10,21 +10,15 @@
 #
 
 import os
-from os import makedirs
-import json
 import torch
 from random import randint
 
-import torchvision
 from utils.loss_utils import l1_loss
 from fused_ssim import fused_ssim
 import sys
 from scene import Scene, GaussianModel
 from utils.general_utils import safe_state
-import uuid
 from tqdm import tqdm
-from utils.image_utils import psnr
-from lpipsPyTorch import lpips
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
 from scene.gaussian_model import build_scaling_rotation
@@ -33,21 +27,21 @@ import nerfview
 import time
 
 
-def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, checkpoint):
+def training(args):
     first_iter = 0
-    prepare_output_and_logger(dataset)
-    gaussians = GaussianModel(dataset.sh_degree, dataset.sb_number)
-    scene = Scene(dataset, gaussians)
-    gaussians.training_setup(opt)
-    if checkpoint:
-        (model_params, first_iter) = torch.load(checkpoint)
-        gaussians.restore(model_params, opt)
+    prepare_output_and_logger(args)
+    gaussians = GaussianModel(args.sh_degree, args.sb_number)
+    scene = Scene(args, gaussians)
+    gaussians.training_setup(args)
+    if args.start_checkpoint:
+        (model_params, first_iter) = torch.load(args.start_checkpoint)
+        gaussians.restore(model_params, args)
 
-    bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
+    bg_color = [1, 1, 1] if args.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
-    if not pipe.disable_viewer:
-        server = viser.ViserServer(port=pipe.port, verbose=False)
+    if not args.disable_viewer:
+        server = viser.ViserServer(port=args.port, verbose=False)
         viewer = nerfview.Viewer(
             server=server,
             render_fn=lambda camera_state, img_wh: gaussians.view(
@@ -68,12 +62,12 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
     viewpoint_stack = None
     ema_loss_for_log = 0.0
-    progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
+    progress_bar = tqdm(range(first_iter, args.iterations), desc="Training progress")
     first_iter += 1
 
-    for iteration in range(first_iter, opt.iterations + 1):
+    for iteration in range(first_iter, args.iterations + 1):
         iter_start.record()
-        if not pipe.disable_viewer:
+        if not args.disable_viewer:
             while viewer.state.status == "paused":
                 time.sleep(0.01)
             viewer.lock.acquire()
@@ -94,7 +88,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
         # Render
         gaussians.background = (
-            torch.rand((3), device="cuda") if opt.random_background else background
+            torch.rand((3), device="cuda") if args.random_background else background
         )
         render_pkg = gaussians.render(viewpoint_cam)
         image = render_pkg["render"]
@@ -102,7 +96,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (
+        loss = (1.0 - args.lambda_dssim) * Ll1 + args.lambda_dssim * (
             1.0 - fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0))
         )
 
@@ -124,21 +118,21 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                     }
                 )
                 progress_bar.update(10)
-            if iteration == opt.iterations:
+            if iteration == args.iterations:
                 progress_bar.close()
 
             # Log and save
-            if iteration % 500 == 0 and iteration >= 15_000 and dataset.eval:
-                save_best_model(scene)
+            if iteration % 500 == 0 and iteration >= 15_000 and args.eval:
+                scene.save_best_model()
 
-            if iteration in saving_iterations and not dataset.eval:
+            if iteration in args.save_iterations and not args.eval:
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
 
             if (
-                iteration < opt.densify_until_iter
-                and iteration > opt.densify_from_iter
-                and iteration % opt.densification_interval == 0
+                iteration < args.densify_until_iter
+                and iteration > args.densify_from_iter
+                and iteration % args.densification_interval == 0
             ):
                 dead_mask = (gaussians.get_opacity <= 0.005).squeeze(-1)
                 gaussians.relocate_gs(dead_mask=dead_mask)
@@ -159,18 +153,18 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                 gaussians._xyz.add_(noise)
 
             # Optimizer step
-            if iteration < opt.iterations:
+            if iteration < args.iterations:
                 gaussians.optimizer.step()
                 gaussians.optimizer.zero_grad(set_to_none=True)
 
-            if iteration in checkpoint_iterations:
+            if iteration in args.checkpoint_iterations:
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save(
                     (gaussians.capture(), iteration),
                     scene.model_path + "/chkpnt" + str(iteration) + ".pth",
                 )
 
-            if not pipe.disable_viewer:
+            if not args.disable_viewer:
                 num_train_rays_per_step = (
                     gt_image.shape[0] * gt_image.shape[1] * gt_image.shape[2]
                 )
@@ -186,12 +180,11 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
     print("\nTraining complete.\n")
 
-    if dataset.eval:
+    if args.eval:
         print("\nEvaluating Best Model Performance\n")
-        scene = Scene(dataset, gaussians, "best")
-        eval(scene)
+        scene = Scene(args, gaussians, "best").eval()
 
-    if not pipe.disable_viewer:
+    if not args.disable_viewer:
         print("Viewer running... Ctrl+C to exit.")
         time.sleep(1000000)
 
@@ -207,70 +200,10 @@ def prepare_output_and_logger(args):
         cfg_log_f.write(str(Namespace(**vars(args))))
 
 
-def save_best_model(scene: Scene):
-    torch.cuda.empty_cache()
-    psnr_test = 0.0
-    test_view_stack = scene.getTestCameras()
-    for idx, viewpoint in enumerate(test_view_stack):
-        image = torch.clamp(scene.gaussians.render(viewpoint)["render"], 0.0, 1.0)
-        gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-        psnr_test += psnr(image, gt_image).mean()
-    psnr_test /= len(test_view_stack)
-    if psnr_test > scene.best_psnr:
-        print(f"save best model. PSNR: {psnr_test}")
-        scene.save("best")
-        scene.best_psnr = psnr_test
-    torch.cuda.empty_cache()
-
-
-def eval(scene: Scene):
-    gt_path = os.path.join(scene.model_path, "point_cloud/iteration_best/gt")
-    render_path = os.path.join(scene.model_path, "point_cloud/iteration_best/render")
-    makedirs(gt_path, exist_ok=True)
-    makedirs(render_path, exist_ok=True)
-    with torch.no_grad():
-        torch.cuda.empty_cache()
-        psnr_test = 0.0
-        ssim_test = 0.0
-        lpips_test = 0.0
-        test_view_stack = scene.getTestCameras()
-        for idx, viewpoint in tqdm(enumerate(test_view_stack)):
-            image = torch.clamp(scene.gaussians.render(viewpoint)["render"], 0.0, 1.0)
-            gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-            torchvision.utils.save_image(
-                image, os.path.join(render_path, "{0:05d}".format(idx) + ".png")
-            )
-            torchvision.utils.save_image(
-                gt_image, os.path.join(gt_path, "{0:05d}".format(idx) + ".png")
-            )
-            psnr_test += psnr(image, gt_image).mean()
-            ssim_test += fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0)).mean()
-            lpips_test += lpips(image, gt_image, net_type="vgg").mean()
-        psnr_test /= len(test_view_stack)
-        ssim_test /= len(test_view_stack)
-        lpips_test /= len(test_view_stack)
-        torch.cuda.empty_cache()
-
-        result = {
-            "ours_best": {
-                "SSIM": ssim_test.item(),
-                "PSNR": psnr_test.item(),
-                "LPIPS": lpips_test.item(),
-            }
-        }
-        with open(
-            os.path.join(scene.model_path, "point_cloud/iteration_best/metrics.json"),
-            "w",
-        ) as f:
-            json.dump(result, f, indent=True)
-
-
 if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Training script parameters")
-    lp = ModelParams(parser)
-    op = OptimizationParams(parser)
-    pp = PipelineParams(parser)
+    ModelParams(parser), OptimizationParams(parser), PipelineParams(parser)
     parser.add_argument("--save_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
@@ -283,11 +216,4 @@ if __name__ == "__main__":
 
     safe_state(args.quiet)
 
-    training(
-        lp.extract(args),
-        op.extract(args),
-        pp.extract(args),
-        args.save_iterations,
-        args.checkpoint_iterations,
-        args.start_checkpoint,
-    )
+    training(args)
