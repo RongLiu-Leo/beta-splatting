@@ -29,9 +29,11 @@ from pathlib import Path
 from plyfile import PlyData, PlyElement
 from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
+from dataclasses import dataclass
 
 
-class CameraInfo(NamedTuple):
+@dataclass
+class CameraInfo:
     uid: int
     R: np.array
     T: np.array
@@ -44,7 +46,8 @@ class CameraInfo(NamedTuple):
     height: int
 
 
-class SceneInfo(NamedTuple):
+@dataclass
+class SceneInfo:
     point_cloud: BasicPointCloud
     train_cameras: list
     test_cameras: list
