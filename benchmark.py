@@ -79,13 +79,13 @@ if args.mipnerf360:
     for scene in mipnerf360_outdoor_scenes:
         source = os.path.join(args.mipnerf360, scene)
         os.system(
-            f"python train.py -s {source} -r 4 -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval"
+            f"python train.py -s {source} -r 4 -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval --disable_viewer"
         )
     # Process indoor scenes
     for scene in mipnerf360_indoor_scenes:
         source = os.path.join(args.mipnerf360, scene)
         os.system(
-            f"python train.py -s {source} -r 2 -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval"
+            f"python train.py -s {source} -r 2 -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval --disable_viewer"
         )
 
     # Collect metrics for Mip-NeRF360 scenes
@@ -111,7 +111,7 @@ if args.tanksandtemples:
     for scene in tanks_and_temples_scenes:
         source = os.path.join(args.tanksandtemples, scene)
         os.system(
-            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval"
+            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval --disable_viewer"
         )
 
     for scene in tanks_and_temples_scenes:
@@ -134,7 +134,7 @@ if args.deepblending:
     for scene in deep_blending_scenes:
         source = os.path.join(args.deepblending, scene)
         os.system(
-            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval"
+            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max {cap_max[scene]} --eval --disable_viewer"
         )
 
     for scene in deep_blending_scenes:
@@ -157,7 +157,7 @@ if args.nerfsynthetic:
     for scene in nerf_synthetic_scenes:
         source = os.path.join(args.nerfsynthetic, scene)
         os.system(
-            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max 300000 --eval -w"
+            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max 300000 --eval --disable_viewer -w"
         )
 
     for scene in nerf_synthetic_scenes:
