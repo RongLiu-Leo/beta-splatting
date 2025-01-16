@@ -386,9 +386,9 @@ def similarity_from_cameras(c2w, strict_scaling=False, center_method="focus"):
     transform[:3, :3] = R_align
 
     # (3) Rescale the scene using camera distances
-    scale_fn = np.max if strict_scaling else np.median
-    scale = 1.0 / scale_fn(np.linalg.norm(t + translate, axis=-1))
-    transform[:3, :] *= scale
+    # scale_fn = np.max if strict_scaling else np.median
+    # scale = 1.0 / scale_fn(np.linalg.norm(t + translate, axis=-1))
+    # transform[:3, :] *= scale
 
     return transform
 
