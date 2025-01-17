@@ -25,7 +25,7 @@ import imageio
 def rendering(args):
     gaussians = GaussianModel(args.sh_degree, args.sb_number)
     scene = Scene(
-        args, gaussians, args.loading_iteration, shuffle=False, normalize=True
+        args, gaussians, args.loading_iteration, shuffle=False, center_and_z_up=True
     )
 
     bg_color = [1, 1, 1] if args.white_background else [0, 0, 0]

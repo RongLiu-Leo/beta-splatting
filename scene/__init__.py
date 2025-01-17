@@ -129,11 +129,17 @@ class Scene:
             camtoworlds_train = transform_cameras(T1, camtoworlds_train)
             points = transform_points(T1, points)
 
+            T2 = align_principle_axes(points)
+
+            camtoworlds_train = transform_cameras(T2, camtoworlds_train)
+            points = transform_points(T2, points)
+
             update_camera_infos(scene_info.train_cameras, camtoworlds_train)
 
             if scene_info.test_cameras:
                 camtoworlds_test = extract_camtoworlds(scene_info.test_cameras)
                 camtoworlds_test = transform_cameras(T1, camtoworlds_test)
+                camtoworlds_test = transform_cameras(T2, camtoworlds_test)
                 update_camera_infos(scene_info.test_cameras, camtoworlds_test)
             scene_info.point_cloud.points = points
 
