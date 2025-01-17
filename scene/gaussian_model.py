@@ -673,7 +673,6 @@ class GaussianModel:
         return num_gs
 
     def render(self, viewpoint_camera, render_mode="RGB", mask=None):
-
         if mask == None:
             mask = torch.ones_like(self.get_beta.squeeze()).bool()
 

@@ -16,12 +16,20 @@ from utils.system_utils import searchForMaxIteration
 from scene.dataset_readers import sceneLoadTypeCallbacks
 from scene.gaussian_model import GaussianModel
 from arguments import ModelParams
-from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
+from utils.camera_utils import (
+    cameraList_from_camInfos,
+    camera_to_JSON,
+    transform_cameras,
+    transform_points,
+    similarity_from_cameras,
+    align_principle_axes,
+)
 import torch
 from utils.image_utils import psnr
 from lpipsPyTorch import lpips
 from fused_ssim import fused_ssim
 from tqdm import tqdm
+import numpy as np
 
 
 class Scene:
@@ -34,6 +42,7 @@ class Scene:
         load_iteration=None,
         shuffle=True,
         resolution_scales=[1.0],
+        center_and_z_up=True,
     ):
         self.model_path = args.model_path
         self.loaded_iter = None
@@ -89,6 +98,50 @@ class Scene:
             )  # Multi-res consistent random shuffling
 
         self.cameras_extent = scene_info.nerf_normalization["radius"]
+
+        if center_and_z_up:
+
+            def extract_camtoworlds(camera_list):
+                w2c_mats = []
+                for cam in camera_list:
+                    # Construct a 4x4 world-to-camera matrix from R and T
+                    w2c = np.eye(4)
+                    w2c[:3, :3] = cam.R.transpose()
+                    w2c[:3, 3] = cam.T
+                    w2c_mats.append(w2c)
+                w2c_mats = np.stack(w2c_mats, axis=0)
+                # Invert to get camera-to-world matrices
+                camtoworlds = np.linalg.inv(w2c_mats)
+                return camtoworlds
+
+            def update_camera_infos(camera_list, new_camtoworlds):
+                for cam, new_pose in zip(camera_list, new_camtoworlds):
+                    w2c = np.linalg.inv(new_pose)
+                    cam.R = w2c[:3, :3].transpose()  # transpose to maintain consistency
+                    cam.T = w2c[:3, 3]
+
+            points = scene_info.point_cloud.points
+
+            camtoworlds_train = extract_camtoworlds(scene_info.train_cameras)
+
+            T1 = similarity_from_cameras(camtoworlds_train)
+
+            camtoworlds_train = transform_cameras(T1, camtoworlds_train)
+            points = transform_points(T1, points)
+
+            T2 = align_principle_axes(points)
+
+            camtoworlds_train = transform_cameras(T2, camtoworlds_train)
+            points = transform_points(T2, points)
+
+            update_camera_infos(scene_info.train_cameras, camtoworlds_train)
+
+            if scene_info.test_cameras:
+                camtoworlds_test = extract_camtoworlds(scene_info.test_cameras)
+                camtoworlds_test = transform_cameras(T1, camtoworlds_test)
+                camtoworlds_test = transform_cameras(T2, camtoworlds_test)
+                update_camera_infos(scene_info.test_cameras, camtoworlds_test)
+            scene_info.point_cloud.points = points
 
         for resolution_scale in resolution_scales:
             print("Loading Training Cameras")

@@ -12,10 +12,11 @@
 import torch
 import math
 import numpy as np
-from typing import NamedTuple
+from dataclasses import dataclass
 
 
-class BasicPointCloud(NamedTuple):
+@dataclass
+class BasicPointCloud:
     points: np.array
     colors: np.array
     normals: np.array
