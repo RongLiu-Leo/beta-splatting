@@ -28,6 +28,4 @@ dependencies:
     - pyyaml
     - matplotlib
     - git+https://github.com/rahul-goel/fused-ssim@1272e21a282342e89537159e4bad508b19b34157
-    - submodules/diff-gaussian-rasterization
-    - submodules/simple-knn
-    - submodules/gsplat
+    - submodules
