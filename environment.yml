@@ -1,4 +1,4 @@
-name: mcmc
+name: beta
 channels:
   - pytorch
   - conda-forge
