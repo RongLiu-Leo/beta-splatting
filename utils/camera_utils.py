@@ -24,8 +24,8 @@ def loadCam(args, id, cam_info, resolution_scale):
     orig_w, orig_h = cam_info.image.size
 
     if args.resolution in [1, 2, 4, 8]:
-        resolution = round(orig_w / (resolution_scale * args.resolution)), round(
-            orig_h / (resolution_scale * args.resolution)
+        resolution = int(orig_w / (resolution_scale * args.resolution) + 0.5), int(
+            orig_h / (resolution_scale * args.resolution) + 0.5
         )
     else:  # should be a type that converts to float
         if args.resolution == -1:
@@ -156,7 +156,7 @@ def generate_ellipse_path_z(
     )[5:-5]
     poses = np.linalg.inv(poses)
 
-    height = poses[:, 2, 3].mean()
+    height = np.median(poses[:, 2, 3])
 
     # Calculate the focal point for the path (cameras point toward this).
     center = focus_point_fn(poses)
