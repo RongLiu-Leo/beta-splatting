@@ -190,7 +190,10 @@ class Scene:
             print(f"save best model. PSNR: {psnr_test}")
             self.save("best")
             self.best_psnr = psnr_test
-        torch.cuda.empty_cache()
+            return True
+        else:
+            return False
+        
 
     @torch.no_grad()
     def eval(self):

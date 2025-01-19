@@ -62,10 +62,24 @@ def training(args):
 
     viewpoint_stack = None
     ema_loss_for_log = 0.0
-    progress_bar = tqdm(range(first_iter, args.iterations), desc="Training progress")
-    first_iter += 1
 
-    for iteration in range(first_iter, args.iterations + 1):
+    # Patience-related variables for evaluation mode
+    patience = 20
+    patience_counter = 0
+
+    # Initialize iteration and progress_bar for logging
+    iteration = first_iter + 1
+    
+    if not args.eval:
+        progress_bar = tqdm(range(first_iter, args.iterations), desc="Training progress")
+    else:
+        progress_bar = tqdm(desc="Training progress")
+
+    while True:
+        # For non-eval mode, break when reaching the specified iterations
+        if not args.eval and iteration > args.iterations:
+            break
+
         iter_start.record()
         if not args.disable_viewer:
             while viewer.state.status == "paused":
@@ -75,58 +89,50 @@ def training(args):
 
         xyz_lr = gaussians.update_learning_rate(iteration)
 
-        # Every 1000 its we increase the levels of SH up to a maximum degree
         if iteration % 1000 == 0:
             gaussians.oneupSHdegree()
 
         # Pick a random Camera
         if not viewpoint_stack:
             viewpoint_stack = scene.getTrainCameras().copy()
-            viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack) - 1))
-        else:
-            viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack) - 1))
+        viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack) - 1))
 
-        # Render
         gaussians.background = (
             torch.rand((3), device="cuda") if args.random_background else background
         )
         render_pkg = gaussians.render(viewpoint_cam)
         image = render_pkg["render"]
 
-        # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
         loss = (1.0 - args.lambda_dssim) * Ll1 + args.lambda_dssim * (
             1.0 - fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0))
         )
-
-        loss = loss + args.opacity_reg * torch.abs(gaussians.get_opacity).mean()
-        loss = loss + args.scale_reg * torch.abs(gaussians.get_scaling).mean()
+        loss += args.opacity_reg * torch.abs(gaussians.get_opacity).mean()
+        loss += args.scale_reg * torch.abs(gaussians.get_scaling).mean()
 
         loss.backward()
-
         iter_end.record()
 
         with torch.no_grad():
-            # Progress bar
             ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
-            if iteration % 10 == 0:
-                progress_bar.set_postfix(
-                    {
-                        "Loss": f"{ema_loss_for_log:.{7}f}",
-                        "Beta": f"{gaussians._beta.mean().item():.2f}",
-                    }
-                )
-                progress_bar.update(10)
-            if iteration == args.iterations:
-                progress_bar.close()
+            progress_bar.set_postfix(
+                {"Iter": iteration, "Loss": f"{ema_loss_for_log:.7f}", "Beta": f"{gaussians._beta.mean().item():.2f}"}
+            )
+            progress_bar.update(1)
 
-            # Log and save
-            if iteration % 500 == 0 and iteration >= 15_000 and args.eval:
-                scene.save_best_model()
+            # Patience-based best model saving in eval mode
+            if args.eval and iteration % 500 == 0 and iteration >= 15_000:
+                if scene.save_best_model():
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                if patience_counter >= patience:
+                    print(f"\nEarly stopping.")
+                    break
 
             if iteration in args.save_iterations and not args.eval:
-                print("\n[ITER {}] Saving Gaussians".format(iteration))
+                print(f"\n[ITER {iteration}] Saving Gaussians")
                 scene.save(iteration)
 
             if (
@@ -138,9 +144,7 @@ def training(args):
                 gaussians.relocate_gs(dead_mask=dead_mask)
                 gaussians.add_new_gs(cap_max=args.cap_max)
 
-                L = build_scaling_rotation(
-                    gaussians.get_scaling, gaussians.get_rotation
-                )
+                L = build_scaling_rotation(gaussians.get_scaling, gaussians.get_rotation)
                 actual_covariance = L @ L.transpose(1, 2)
 
                 noise = (
@@ -152,31 +156,20 @@ def training(args):
                 noise = torch.bmm(actual_covariance, noise.unsqueeze(-1)).squeeze(-1)
                 gaussians._xyz.add_(noise)
 
-            # Optimizer step
-            if iteration < args.iterations:
-                gaussians.optimizer.step()
-                gaussians.optimizer.zero_grad(set_to_none=True)
-
-            if iteration in args.checkpoint_iterations:
-                print("\n[ITER {}] Saving Checkpoint".format(iteration))
-                torch.save(
-                    (gaussians.capture(), iteration),
-                    scene.model_path + "/chkpnt" + str(iteration) + ".pth",
-                )
+            gaussians.optimizer.step()
+            gaussians.optimizer.zero_grad(set_to_none=True)
 
             if not args.disable_viewer:
-                num_train_rays_per_step = (
-                    gt_image.shape[0] * gt_image.shape[1] * gt_image.shape[2]
-                )
-                # Update the scene.
+                num_train_rays_per_step = gt_image.numel()  # Total number of rays in the image
                 viewer.lock.release()
                 num_train_steps_per_sec = 1.0 / (time.time() - tic + 1e-8)
-                num_train_rays_per_sec = (
-                    num_train_rays_per_step * num_train_steps_per_sec
-                )
-                # Update the viewer state.
+                num_train_rays_per_sec = num_train_rays_per_step * num_train_steps_per_sec
                 viewer.state.num_train_rays_per_sec = num_train_rays_per_sec
                 viewer.update(iteration, num_train_rays_per_step)
+
+        iteration += 1
+
+    progress_bar.close()
 
     print("\nTraining complete.\n")
 
