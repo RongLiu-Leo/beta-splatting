@@ -9,3 +9,7 @@ screenshots
 *.txt
 /eval
 outputs
+media
+animation
+data
+experiment
