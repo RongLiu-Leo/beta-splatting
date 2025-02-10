@@ -193,7 +193,6 @@ class Scene:
             return True
         else:
             return False
-        
 
     @torch.no_grad()
     def eval(self):

@@ -26,8 +26,7 @@ from tqdm import tqdm
 def rendering(args):
     args.data_device = "cpu"
     gaussians = GaussianModel(args.sh_degree, args.sb_number)
-    scene = Scene(
-        args, gaussians, args.loading_iteration, shuffle=False)
+    scene = Scene(args, gaussians, args.loading_iteration, shuffle=False)
 
     bg_color = [1, 1, 1] if args.white_background else [0, 0, 0]
     gaussians.background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -81,6 +80,7 @@ def rendering(args):
     render_video(cameras, args.render_mode, args.render_traj_path)
 
     print("Rendering complete.")
+
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Rendering script parameters")

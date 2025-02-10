@@ -69,9 +69,11 @@ def training(args):
 
     # Initialize iteration and progress_bar for logging
     iteration = first_iter + 1
-    
+
     if not args.eval:
-        progress_bar = tqdm(range(first_iter, args.iterations), desc="Training progress")
+        progress_bar = tqdm(
+            range(first_iter, args.iterations), desc="Training progress"
+        )
     else:
         progress_bar = tqdm(desc="Training progress")
 
@@ -117,19 +119,13 @@ def training(args):
         with torch.no_grad():
             ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
             progress_bar.set_postfix(
-                {"Iter": iteration, "Loss": f"{ema_loss_for_log:.7f}", "Beta": f"{gaussians._beta.mean().item():.2f}"}
+                {
+                    "Iter": iteration,
+                    "Loss": f"{ema_loss_for_log:.7f}",
+                    "Beta": f"{gaussians._beta.mean().item():.2f}",
+                }
             )
             progress_bar.update(1)
-
-            # Patience-based best model saving in eval mode
-            if args.eval and iteration % 500 == 0 and iteration >= 15_000:
-                if scene.save_best_model():
-                    patience_counter = 0
-                else:
-                    patience_counter += 1
-                if patience_counter >= patience:
-                    print(f"\nEarly stopping.")
-                    break
 
             if iteration in args.save_iterations and not args.eval:
                 print(f"\n[ITER {iteration}] Saving Gaussians")
@@ -144,7 +140,9 @@ def training(args):
                 gaussians.relocate_gs(dead_mask=dead_mask)
                 gaussians.add_new_gs(cap_max=args.cap_max)
 
-                L = build_scaling_rotation(gaussians.get_scaling, gaussians.get_rotation)
+                L = build_scaling_rotation(
+                    gaussians.get_scaling, gaussians.get_rotation
+                )
                 actual_covariance = L @ L.transpose(1, 2)
 
                 noise = (
@@ -160,12 +158,26 @@ def training(args):
             gaussians.optimizer.zero_grad(set_to_none=True)
 
             if not args.disable_viewer:
-                num_train_rays_per_step = gt_image.numel()  # Total number of rays in the image
+                num_train_rays_per_step = (
+                    gt_image.numel()
+                )  # Total number of rays in the image
                 viewer.lock.release()
                 num_train_steps_per_sec = 1.0 / (time.time() - tic + 1e-8)
-                num_train_rays_per_sec = num_train_rays_per_step * num_train_steps_per_sec
+                num_train_rays_per_sec = (
+                    num_train_rays_per_step * num_train_steps_per_sec
+                )
                 viewer.state.num_train_rays_per_sec = num_train_rays_per_sec
                 viewer.update(iteration, num_train_rays_per_step)
+
+            # Patience-based best model saving in eval mode
+            if args.eval and iteration % 500 == 0 and iteration >= 15_000:
+                if scene.save_best_model():
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                if patience_counter >= patience:
+                    print(f"\nEarly stopping.")
+                    break
 
         iteration += 1
 
