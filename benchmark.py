@@ -157,7 +157,7 @@ if args.nerfsynthetic:
     for scene in nerf_synthetic_scenes:
         source = os.path.join(args.nerfsynthetic, scene)
         os.system(
-            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max 300000 --eval --disable_viewer -w"
+            f"python train.py -s {source} -m {args.output_path}/{scene} --cap_max 300000 --eval --disable_viewer"
         )
 
     for scene in nerf_synthetic_scenes:
