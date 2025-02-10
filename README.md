@@ -1,37 +1,28 @@
-# Beta Splatting
+# Deformable Beta Splatting
 
-[![button](https://img.shields.io/badge/Project%20Website-orange?style=for-the-badge)](https://ubc-vision.github.io/3dgs-mcmc/)
-[![button](https://img.shields.io/badge/Paper-blue?style=for-the-badge)](https://arxiv.org/abs/2404.09591)
+[![button](https://img.shields.io/badge/Project%20Website-orange?style=for-the-badge)](https://rongliu-leo.github.io/beta-splatting/)
+[![button](https://img.shields.io/badge/Paper-blue?style=for-the-badge)](https://arxiv.org/abs/2501.18630)
 
-<!-- <span class="author-block">
-  <a href="https://shakibakh.github.io/">Shakiba Kheradmand</a>,
+<span class="author-block">
+  <a href="https://rongliu-leo.github.io/">Rong Liu*</a>,
 </span>
 <span class="author-block">
-  <a href="http://drebain.com/"> Daniel Rebain</a>,
+  <a href=""> Dylan Sun*</a>,
 </span>
 <span class="author-block">
-  <a href="https://hippogriff.github.io/"> Gopal Sharma</a>,
+  <a href="https://www.linkedin.com/in/meida-chen-938a265b/"> Meida Chen</a>,
 </span>
 <span class="author-block">
-  <a href="https://wsunid.github.io/"> Weiwei Sun</a>,
+  <a href="https://yuewang.xyz/"> Yue Wang†</a>,
 </span>
 <span class="author-block">
-  <a href="https://scholar.google.com/citations?user=1iJfq7YAAAAJ&hl=en"> Yang-Che Tseng</a>,
-</span>
-<span class="author-block">
-  <a href="http://www.hossamisack.com/">Hossam Isack</a>,
-</span>
-<span class="author-block">
-  <a href="https://abhishekkar.info/">Abhishek Kar</a>,
-</span>
-<span class="author-block">
-  <a href="https://taiya.github.io/">Andrea Tagliasacchi</a>,
-</span>
-<span class="author-block">
-  <a href="https://www.cs.ubc.ca/~kmyi/">Kwang Moo Yi</a>
+  <a href="https://scholar.google.com/citations?user=JKWxGfsAAAAJ&hl=en"> Andrew Feng†</a>
 </span>
 
-<hr> -->
+(*Co-first authors, equal technical contribution.)
+
+(†Co-advisors, equal leading contribution.)
+
 
 <!-- <video controls>
   <source src="docs/resources/training_rand_compare/bicycle_both-rand.mp4" type="video/mp4">
@@ -47,7 +38,7 @@
   year={2024}
 }</code></pre>
   </div>
-</section> -->
+</section>
 
 
 
