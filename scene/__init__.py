@@ -42,7 +42,7 @@ class Scene:
         load_iteration=None,
         shuffle=True,
         resolution_scales=[1.0],
-        center_and_z_up=True,
+        center_and_z_up=False,
     ):
         self.model_path = args.model_path
         self.loaded_iter = None
