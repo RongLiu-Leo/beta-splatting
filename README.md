@@ -19,14 +19,11 @@
   <a href="https://scholar.google.com/citations?user=JKWxGfsAAAAJ&hl=en"> Andrew Feng†</a>
 </span>
 
-(*Co-first authors, equal technical contribution.)
+(*Co-first authors, equal technical contribution; †Co-advisors, equal leading contribution.)
 
-(†Co-advisors, equal leading contribution.)
+![Teaser image](assets/teaser.png)
 
 
-<!-- <video controls>
-  <source src="docs/resources/training_rand_compare/bicycle_both-rand.mp4" type="video/mp4">
-</video> -->
 
 <!-- <section class="section" id="BibTeX">
   <div class="container is-max-desktop content">
@@ -71,3 +68,16 @@
     pip install submodules/diff-gaussian-rasterization
     ```
 
+## Citation
+If you find our code or paper helps, please consider giving us a star or citing:
+```bibtex
+@misc{liu2025deformablebetasplatting,
+      title={Deformable Beta Splatting}, 
+      author={Rong Liu and Dylan Sun and Meida Chen and Yue Wang and Andrew Feng},
+      year={2025},
+      eprint={2501.18630},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2501.18630}, 
+}
+```
