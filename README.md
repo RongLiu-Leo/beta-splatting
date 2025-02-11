@@ -1,7 +1,7 @@
 # Deformable Beta Splatting
 
-[![button](https://img.shields.io/badge/Project-Website-blue.svg?style=flat-square&logo=Google-Chrome)](https://rongliu-leo.github.io/beta-splatting/)
-[![button](https://img.shields.io/badge/Paper-arXiv-red.svg?style=flat-square&logo=arXiv)](https://arxiv.org/abs/2501.18630)
+[![button](https://img.shields.io/badge/Project-Website-blue.svg?style=social&logo=Google-Chrome)](https://rongliu-leo.github.io/beta-splatting/)
+[![button](https://img.shields.io/badge/Paper-arXiv-red.svg?style=social&logo=arXiv)](https://arxiv.org/abs/2501.18630)
 
 <span class="author-block">
   <a href="https://rongliu-leo.github.io/">Rong Liu*</a>,
@@ -49,7 +49,9 @@ This project is built on top of the [Original 3DGS](https://github.com/graphdeco
 1. **Install Dependencies and Submodules:**
     ```sh
     pip install -r requirements.txt
-    pip install submodule
+    cd submodule
+    pip install .
+    cd ..
     ```
 
 ## Citation
