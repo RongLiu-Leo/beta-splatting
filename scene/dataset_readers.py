@@ -267,7 +267,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             )  # R is stored transposed due to 'glm' in CUDA code
             T = w2c[:3, 3]
 
-            image_path = os.path.join(path, cam_name)
+            image_path = cam_name
             image_name = Path(cam_name).stem
             image = Image.open(image_path)
 

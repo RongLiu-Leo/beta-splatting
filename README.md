@@ -54,6 +54,10 @@ This project is built on top of the [Original 3DGS](https://github.com/graphdeco
 ```shell
 python train.py -s <path to COLMAP or NeRF Synthetic dataset>
 ```
+For example,
+```shell
+python train.py -s lego --eval
+```
 <details>
 <summary><span style="font-weight: bold;">Important Command Line Arguments for train.py</span></summary>
 

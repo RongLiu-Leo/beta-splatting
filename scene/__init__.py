@@ -187,7 +187,6 @@ class Scene:
             psnr_test += psnr(image, gt_image).mean()
         psnr_test /= len(test_view_stack)
         if psnr_test > self.best_psnr:
-            print(f"save best model. PSNR: {psnr_test}")
             self.save("best")
             self.best_psnr = psnr_test
             return True
