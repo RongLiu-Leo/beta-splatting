@@ -22,6 +22,7 @@ install_requires = [
     "pyyaml",
     "matplotlib",
     "pandas",
+    "tabulate",
     "fused-ssim @ git+https://github.com/rahul-goel/fused-ssim@1272e21a282342e89537159e4bad508b19b34157",
 ]
 
