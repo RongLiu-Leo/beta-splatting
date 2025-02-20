@@ -33,7 +33,7 @@ This project is built on top of the [Original 3DGS](https://github.com/graphdeco
 
 1. **Clone the Repository:**
    ```sh
-   git clone https://github.com/RongLiu-Leo/beta-splatting.git
+   git clone --single-branch --branch main https://github.com/RongLiu-Leo/beta-splatting.git
    cd beta-splatting
    ```
 1. **Set Up the Conda Environment:**
