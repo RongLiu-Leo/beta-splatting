@@ -38,18 +38,18 @@ let defaultOptions = {
     }); 
   
     this.container = this.options.container;
-  
+    console.warn(this.container);
     if (this.container == null) {
       console.error("Container element not found!");
     } else {
   
       this._setOrientation(this.options.linesOrientation, this.container);
-      this.images = this._getImages();
+      this.medias = this._getMedias();
       this.sliders = [];
       this._activeSlider = null;
   
   
-      this._load(this.images[0]);
+      this._load(this.medias[0]);
   
     }
   };
@@ -59,34 +59,49 @@ let defaultOptions = {
    *
    * @private
    */
-  Dics.prototype._load = function(firstImage, maxCounter = 100000) {
-    if (firstImage.naturalWidth) {
-      this._buidAfterFirstImageLoad(firstImage);
-      window.addEventListener("resize", () => {
-        this._setContainerWidth(firstImage);
-        this._resetSizes();
-      });
-  
-    } else {
-      if (maxCounter > 0) {
-        maxCounter--;
-        setTimeout(() => {
-          this._load(firstImage, maxCounter);
-        }, 100);
-      } else {
-        console.error("error loading images");
-      }
-  
+  Dics.prototype._load = function(firstMedia, maxCounter = 100000) {
+    if (firstMedia.tagName === 'IMG') {
+        if (firstMedia.naturalWidth) {
+            this._buidAfterFirstMediaLoad(firstMedia);
+            window.addEventListener("resize", () => {
+                this._setContainerWidth(firstMedia);
+                this._resetSizes();
+            });
+        } else {
+            if (maxCounter > 0) {
+                maxCounter--;
+                setTimeout(() => {
+                    this._load(firstMedia, maxCounter);
+                }, 100);
+            } else {
+                console.error("Error loading medias");
+            }
+        }
+    } else if (firstMedia.tagName === 'VIDEO') {
+        firstMedia.addEventListener('loadedmetadata', () => {
+            this._buidAfterFirstMediaLoad(firstMedia);
+            window.addEventListener("resize", () => {
+                this._setContainerWidth(firstMedia);
+                this._resetSizes();
+            });
+        });
+
+        // Ensure the video is loaded
+        if (firstMedia.readyState >= 1) {
+            this._buidAfterFirstMediaLoad(firstMedia);
+        } else {
+            firstMedia.load(); // Trigger loading if not loaded
+        }
     }
-  };
+};
   
   
   /**
    *
    * @private
    */
-  Dics.prototype._buidAfterFirstImageLoad = function(firstImage) {
-    this._setContainerWidth(firstImage);
+  Dics.prototype._buidAfterFirstMediaLoad = function(firstMedia) {
+    this._setContainerWidth(firstMedia);
   
     this._build();
     this._setEvents();
@@ -97,8 +112,8 @@ let defaultOptions = {
    *
    * @private
    */
-  Dics.prototype._setContainerWidth = function(firstImage) {
-    this.options.container.style.height = `${this._calcContainerHeight(firstImage)}px`;
+  Dics.prototype._setContainerWidth = function(firstMedia) {
+    this.options.container.style.height = `${this._calcContainerHeight(firstMedia)}px`;
   };
   
   
@@ -117,21 +132,21 @@ let defaultOptions = {
    */
   Dics.prototype._resetSizes = function() {
     let dics = this;
-    let imagesLength = dics.images.length;
+    let mediasLength = dics.medias.length;
   
-    let initialImagesContainerWidth = dics.container.getBoundingClientRect()[dics.config.sizeField] / imagesLength;
+    let initialMediasContainerWidth = dics.container.getBoundingClientRect()[dics.config.sizeField] / mediasLength;
   
     const sections$$ = dics.container.querySelectorAll("[data-function='b-dics__section']");
     for (let i = 0; i < sections$$.length; i++) {
       let section$$ = sections$$[i];
   
-      section$$.style.flex = `0 0 ${initialImagesContainerWidth}px`;
+      section$$.style.flex = `0 0 ${initialMediasContainerWidth}px`;
   
-      section$$.querySelector(".b-dics__image").style[this.config.positionField] = `${i * -initialImagesContainerWidth}px`;
+      section$$.querySelector(".b-dics__media").style[this.config.positionField] = `${i * -initialMediasContainerWidth}px`;
   
       const slider$$ = section$$.querySelector(".b-dics__slider");
       if (slider$$) {
-        slider$$.style[this.config.positionField] = `${initialImagesContainerWidth * (i + 1)}px`;
+        slider$$.style[this.config.positionField] = `${initialMediasContainerWidth * (i + 1)}px`;
   
       }
   
@@ -145,45 +160,40 @@ let defaultOptions = {
    */
   Dics.prototype._build = function() {
     let dics = this;
-  
+
     dics._applyGlobalClass(dics.options);
-  
-    let imagesLength = dics.images.length;
-  
-  
-    let initialImagesContainerWidth = dics.container.getBoundingClientRect()[dics.config.sizeField] / imagesLength;
-  
-    for (let i = 0; i < imagesLength; i++) {
-      let image = dics.images[i];
-      let section = dics._createElement("div", "b-dics__section");
-      let imageContainer = dics._createElement("div", "b-dics__image-container");
-      let slider = dics._createSlider(i, initialImagesContainerWidth);
-  
-      dics._createAltText(image, i, imageContainer);
-  
-      dics._applyFilter(image, i, dics.options.filters);
-      dics._rotate(image, imageContainer);
-  
-  
-      section.setAttribute("data-function", "b-dics__section");
-      section.style.flex = `0 0 ${initialImagesContainerWidth}px`;
-  
-      image.classList.add("b-dics__image");
-  
-      section.appendChild(imageContainer);
-      imageContainer.appendChild(image);
-  
-      if (i < imagesLength - 1) {
-        section.appendChild(slider);
-      }
-  
-      dics.container.appendChild(section);
-  
-      image.style[this.config.positionField] = `${i * -initialImagesContainerWidth}px`;
-  
-  
+
+    let mediaLength = dics.medias.length;  // Supports both images and videos
+    let initialMediaContainerWidth = dics.container.getBoundingClientRect()[dics.config.sizeField] / mediaLength;
+    console.log(mediaLength);
+
+    for (let i = 0; i < mediaLength; i++) {
+        let media = dics.medias[i];  // Now supports both <img> and <video>
+        let section = dics._createElement("div", "b-dics__section");
+        let mediaContainer = dics._createElement("div", "b-dics__media-container");
+        let slider = dics._createSlider(i, initialMediaContainerWidth);
+
+        dics._createAltText(media, i, mediaContainer);
+        dics._applyFilter(media, i, dics.options.filters);
+        dics._rotate(media, mediaContainer);
+
+        section.setAttribute("data-function", "b-dics__section");
+        section.style.flex = `0 0 ${initialMediaContainerWidth}px`;
+
+        media.classList.add("b-dics__media");  // Apply class to both <img> and <video>
+
+        section.appendChild(mediaContainer);
+        mediaContainer.appendChild(media);
+
+        if (i < mediaLength - 1) {
+            section.appendChild(slider);
+        }
+
+        dics.container.appendChild(section);
+
+        media.style[dics.config.positionField] = `${i * -initialMediaContainerWidth}px`;
     }
-  
+
     this.sections = this._getSections();
     this._setOpacityContainerForLoading(1);
   };
@@ -194,9 +204,15 @@ let defaultOptions = {
    * @returns {NodeListOf<SVGElementTagNameMap[string]> | NodeListOf<HTMLElementTagNameMap[string]> | NodeListOf<Element>}
    * @private
    */
-  Dics.prototype._getImages = function() {
-    return this.container.querySelectorAll("img");
-  };
+  Dics.prototype._getMedias = function() {
+    let mediaElements = Array.from(this.container.querySelectorAll("img, video"));
+
+    if (mediaElements.length === 0) {
+        console.warn("No images or videos found in the container.");
+    }
+
+    return mediaElements;
+};
   
   
   /**
@@ -212,7 +228,7 @@ let defaultOptions = {
    *
    * @param elementClass
    * @param className
-   * @returns {HTMLElement | HTMLSelectElement | HTMLLegendElement | HTMLTableCaptionElement | HTMLTextAreaElement | HTMLModElement | HTMLHRElement | HTMLOutputElement | HTMLPreElement | HTMLEmbedElement | HTMLCanvasElement | HTMLFrameSetElement | HTMLMarqueeElement | HTMLScriptElement | HTMLInputElement | HTMLUnknownElement | HTMLMetaElement | HTMLStyleElement | HTMLObjectElement | HTMLTemplateElement | HTMLBRElement | HTMLAudioElement | HTMLIFrameElement | HTMLMapElement | HTMLTableElement | HTMLAnchorElement | HTMLMenuElement | HTMLPictureElement | HTMLParagraphElement | HTMLTableDataCellElement | HTMLTableSectionElement | HTMLQuoteElement | HTMLTableHeaderCellElement | HTMLProgressElement | HTMLLIElement | HTMLTableRowElement | HTMLFontElement | HTMLSpanElement | HTMLTableColElement | HTMLOptGroupElement | HTMLDataElement | HTMLDListElement | HTMLFieldSetElement | HTMLSourceElement | HTMLBodyElement | HTMLDirectoryElement | HTMLDivElement | HTMLUListElement | HTMLHtmlElement | HTMLAreaElement | HTMLMeterElement | HTMLAppletElement | HTMLFrameElement | HTMLOptionElement | HTMLImageElement | HTMLLinkElement | HTMLHeadingElement | HTMLSlotElement | HTMLVideoElement | HTMLBaseFontElement | HTMLTitleElement | HTMLButtonElement | HTMLHeadElement | HTMLParamElement | HTMLTrackElement | HTMLOListElement | HTMLDataListElement | HTMLLabelElement | HTMLFormElement | HTMLTimeElement | HTMLBaseElement}
+   * @returns {HTMLElement | HTMLSelectElement | HTMLLegendElement | HTMLTableCaptionElement | HTMLTextAreaElement | HTMLModElement | HTMLHRElement | HTMLOutputElement | HTMLPreElement | HTMLEmbedElement | HTMLCanvasElement | HTMLFrameSetElement | HTMLMarqueeElement | HTMLScriptElement | HTMLInputElement | HTMLUnknownElement | HTMLMetaElement | HTMLStyleElement | HTMLObjectElement | HTMLTemplateElement | HTMLBRElement | HTMLAudioElement | HTMLIFrameElement | HTMLMapElement | HTMLTableElement | HTMLAnchorElement | HTMLMenuElement | HTMLPictureElement | HTMLParagraphElement | HTMLTableDataCellElement | HTMLTableSectionElement | HTMLQuoteElement | HTMLTableHeaderCellElement | HTMLProgressElement | HTMLLIElement | HTMLTableRowElement | HTMLFontElement | HTMLSpanElement | HTMLTableColElement | HTMLOptGroupElement | HTMLDataElement | HTMLDListElement | HTMLFieldSetElement | HTMLSourceElement | HTMLBodyElement | HTMLDirectoryElement | HTMLDivElement | HTMLUListElement | HTMLHtmlElement | HTMLAreaElement | HTMLMeterElement | HTMLAppletElement | HTMLFrameElement | HTMLOptionElement | HTMLImageElement | HTMLVideoElement | HTMLLinkElement | HTMLHeadingElement | HTMLSlotElement | HTMLVideoElement | HTMLBaseFontElement | HTMLTitleElement | HTMLButtonElement | HTMLHeadElement | HTMLParamElement | HTMLTrackElement | HTMLOListElement | HTMLDataListElement | HTMLLabelElement | HTMLFormElement | HTMLTimeElement | HTMLBaseElement}
    * @private
    */
   Dics.prototype._createElement = function(elementClass, className) {
@@ -230,7 +246,7 @@ let defaultOptions = {
   Dics.prototype._setEvents = function() {
     let dics = this;
   
-    dics._disableImageDrag();
+    dics._disableMediaDrag();
   
     dics._isGoingRight = null;
   
@@ -250,7 +266,7 @@ let defaultOptions = {
   
       let position = dics._calcPosition(event);
   
-      let beforeSectionsWidth = dics._beforeSectionsWidth(dics.sections, dics.images, dics._activeSlider);
+      let beforeSectionsWidth = dics._beforeSectionsWidth(dics.sections, dics.medias, dics._activeSlider);
   
       let calcMovePixels = position - beforeSectionsWidth;
   
@@ -292,12 +308,12 @@ let defaultOptions = {
   /**
    *
    * @param sections
-   * @param images
+   * @param medias
    * @param activeSlider
    * @returns {number}
    * @private
    */
-  Dics.prototype._beforeSectionsWidth = function(sections, images, activeSlider) {
+  Dics.prototype._beforeSectionsWidth = function(sections, medias, activeSlider) {
     let width = 0;
     for (let i = 0; i < sections.length; i++) {
       let section = sections[i];
@@ -314,27 +330,39 @@ let defaultOptions = {
    * @returns {number}
    * @private
    */
-  Dics.prototype._calcContainerHeight = function(firstImage) {
-    let imgHeight = firstImage.naturalHeight;
-    let imgWidth = firstImage.naturalWidth;
-    let containerWidth = this.options.container.getBoundingClientRect().width;
+  Dics.prototype._calcContainerHeight = function(firstMedia) {
+    let mediaHeight, mediaWidth;
   
-    return (containerWidth / imgWidth) * imgHeight;
+    if (firstMedia.tagName === "IMG") {
+        mediaHeight = firstMedia.naturalHeight;
+        mediaWidth = firstMedia.naturalWidth;
+    } else if (firstMedia.tagName === "VIDEO") {
+        mediaHeight = firstMedia.videoHeight;
+        mediaWidth = firstMedia.videoWidth;
+    } else {
+        console.error("Unsupported media type:", firstMedia);
+        return 0;
+    }
+
+    let containerWidth = this.options.container.getBoundingClientRect().width;
+
+    return (containerWidth / mediaWidth) * mediaHeight;
   };
+
   
   
   /**
    *
    * @param sections
-   * @param images
+   * @param medias
    * @private
    */
-  Dics.prototype._setLeftToImages = function(sections, images) {
+  Dics.prototype._setLeftToMedias = function(sections, medias) {
     let size = 0;
-    for (let i = 0; i < images.length; i++) {
-      let image = images[i];
+    for (let i = 0; i < medias.length; i++) {
+      let media = medias[i];
   
-      image.style[this.config.positionField] = `-${size}px`;
+      media.style[this.config.positionField] = `-${size}px`;
       size += sections[i].getBoundingClientRect()[this.config.sizeField];
   
       this.sliders[i].style[this.config.positionField] = `${size}px`;
@@ -347,12 +375,12 @@ let defaultOptions = {
    *
    * @private
    */
-  Dics.prototype._disableImageDrag = function() {
-    for (let i = 0; i < this.images.length; i++) {
+  Dics.prototype._disableMediaDrag = function() {
+    for (let i = 0; i < this.medias.length; i++) {
       this.sliders[i].addEventListener("dragstart", function(e) {
         e.preventDefault();
       });
-      this.images[i].addEventListener("dragstart", function(e) {
+      this.medias[i].addEventListener("dragstart", function(e) {
         e.preventDefault();
       });
     }
@@ -360,14 +388,14 @@ let defaultOptions = {
   
   /**
    *
-   * @param image
+   * @param media
    * @param index
    * @param filters
    * @private
    */
-  Dics.prototype._applyFilter = function(image, index, filters) {
+  Dics.prototype._applyFilter = function(media, index, filters) {
     if (filters) {
-      image.style.filter = filters[index];
+      media.style.filter = filters[index];
     }
   };
   
@@ -400,14 +428,14 @@ let defaultOptions = {
   };
   
   
-  Dics.prototype._createSlider = function(i, initialImagesContainerWidth) {
+  Dics.prototype._createSlider = function(i, initialMediasContainerWidth) {
     let slider = this._createElement("div", "b-dics__slider");
   
     if (this.options.linesColor) {
       slider.style.color = this.options.linesColor;
     }
   
-    slider.style[this.config.positionField] = `${initialImagesContainerWidth * (i + 1)}px`;
+    slider.style[this.config.positionField] = `${initialMediasContainerWidth * (i + 1)}px`;
   
     this.sliders.push(slider);
   
@@ -418,13 +446,13 @@ let defaultOptions = {
   
   /**
    *
-   * @param image
+   * @param media
    * @param i
-   * @param imageContainer
+   * @param mediaContainer
    * @private
    */
-  Dics.prototype._createAltText = function(image, i, imageContainer) {
-    let textContent = image.getAttribute("alt");
+  Dics.prototype._createAltText = function(media, i, mediaContainer) {
+    let textContent = media.getAttribute("alt");
     if (textContent) {
       let text = this._createElement("p", "b-dics__text");
   
@@ -437,20 +465,20 @@ let defaultOptions = {
   
       text.appendChild(document.createTextNode(textContent));
   
-      imageContainer.appendChild(text);
+      mediaContainer.appendChild(text);
     }
   };
   
   
   /**
    *
-   * @param image
-   * @param imageContainer
+   * @param media
+   * @param mediaContainer
    * @private
    */
-  Dics.prototype._rotate = function(image, imageContainer) {
-    image.style.rotate = `-${this.options.rotate}`;
-    imageContainer.style.rotate = this.options.rotate;
+  Dics.prototype._rotate = function(media, mediaContainer) {
+    media.style.rotate = `-${this.options.rotate}`;
+    mediaContainer.style.rotate = this.options.rotate;
   
   };
   
@@ -527,7 +555,7 @@ let defaultOptions = {
     section.style.flex = this._isGoingRight === true ? `2 0 ${calcMovePixels}px` : `1 1 ${calcMovePixels}px`;
     postActualSection.style.flex = this._isGoingRight === true ? ` ${sectionWidth}px` : `2 0 ${sectionWidth}px`;
   
-    this._setLeftToImages(this.sections, this.images);
+    this._setLeftToMedias(this.sections, this.medias);
   
     // }
   };
