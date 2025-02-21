@@ -167,6 +167,38 @@
   </div>
 </section>
 
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 is-centered has-text-centered" style="margin-top: -20px">Light Decomposition</h2>
+    <ul class="nav nav-tabs nav-fill nav-justified" id="scene">
+        <li class="nav-item">
+          <a class="nav-link active" onclick="sceneEvent(0)">Counter</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="sceneEvent(1)">Garden</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" onclick="sceneEvent(2)">Kitchen</a>
+        </li>
+    </ul>
+    <div class="b-dics light">
+      <video autoplay muted loop src="./static/videos/counter/gs/Diffuse.mp4" alt="3D GS"></video>
+      <video autoplay muted loop src="./static/videos/counter/bs/Diffuse.mp4" alt="Ours"></video>
+    </div>
+    <ul class="nav nav-tabs nav-fill nav-justified" id="light-decomposition" style="border-width: 0px 0px 1px 0px;">
+      <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
+        <a class="nav-link active" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(0)">Diffuse</a>
+      </li>
+      <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
+        <a class="nav-link" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(1)">Full</a>
+      </li>
+      <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
+        <a class="nav-link" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(2)">Specular</a>
+      </li>
+  </ul>
+  </div>
+</section>
+
 <section class="section" id="BibTeX">
   <div class="container is-max-desktop content">
     <h2 class="title">BibTeX</h2>
