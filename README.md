@@ -1,16 +1,16 @@
-# AtomGS
+# Deformable Beta Splatting
 
-This is the repository that contains source code for the [AtomGS](https://rongliu-leo.github.io/AtomGS/) website, whcih integrates beautiful features from [Nerfies](https://github.com/nerfies/nerfies.github.io) and [Neuralangelo](https://research.nvidia.com/labs/dir/neuralangelo/).
+This is the repository that contains source code for the [Deformable Beta Splatting](https://rongliu-leo.github.io/beta-splatting/) website, based on [Nerfies](https://github.com/nerfies/nerfies.github.io), [Neuralangelo](https://research.nvidia.com/labs/dir/neuralangelo/) and [AtomGS](https://rongliu-leo.github.io/AtomGS/).
 
-If you find AtomGS useful for your work please cite:
-```
-@misc{liu2024atomgs,
-    title={AtomGS: Atomizing Gaussian Splatting for High-Fidelity Radiance Field}, 
-    author={Rong Liu and Rui Xu and Yue Hu and Meida Chen and Andrew Feng},
-    year={2024},
-    eprint={2405.12369},
-    archivePrefix={arXiv},
-    primaryClass={cs.CV},
-    url={https://rongliu-leo.github.io/AtomGS/}
+If you find Deformable Beta Splatting useful for your work please cite:
+```bibtex
+@misc{liu2025deformablebetasplatting,
+      title={Deformable Beta Splatting}, 
+      author={Rong Liu and Dylan Sun and Meida Chen and Yue Wang and Andrew Feng},
+      year={2025},
+      eprint={2501.18630},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2501.18630}, 
 }
 ```
