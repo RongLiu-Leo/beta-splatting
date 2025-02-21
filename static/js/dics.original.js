@@ -165,7 +165,6 @@ let defaultOptions = {
 
     let mediaLength = dics.medias.length;  // Supports both images and videos
     let initialMediaContainerWidth = dics.container.getBoundingClientRect()[dics.config.sizeField] / mediaLength;
-    console.log(mediaLength);
 
     for (let i = 0; i < mediaLength; i++) {
         let media = dics.medias[i];  // Now supports both <img> and <video>
