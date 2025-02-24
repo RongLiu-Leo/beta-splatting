@@ -29,27 +29,39 @@
   <script src="./static/js/bulma-carousel.min.js"></script>
   <script src="./static/js/bulma-slider.min.js"></script>
   <script>
-    // Wait for the window to load so that all video elements are in the DOM.
     window.addEventListener('load', () => {
-      // Find all containers with videos.
+      // Select every container that holds videos
       const containers = document.querySelectorAll('.b-dics');
-      
+  
       containers.forEach(container => {
         const videos = container.querySelectorAll('video');
-        console.log(videos);
         let readyCount = 0;
   
         videos.forEach(video => {
+          // Add click listener to toggle play/pause for all videos in this container
+          video.addEventListener('click', () => {
+            // Use the clicked video's state to determine the action
+            const shouldPlay = video.paused;
+            videos.forEach(v => {
+              // If playing is desired, start them; otherwise, pause them.
+              if (shouldPlay) {
+                v.play();
+              } else {
+                v.pause();
+              }
+            });
+          });
+  
+          // Wait for metadata to load before starting
           video.addEventListener('loadedmetadata', () => {
             readyCount++;
-            // When all videos in this container are ready:
             if (readyCount === videos.length) {
-              // Reset time and start playing each video.
+              // Set initial time to 0 and play all videos
               videos.forEach(v => {
                 v.currentTime = 0;
                 v.play();
               });
-              // Begin synchronizing the videos within this container.
+              // Start synchronizing the videos within this container
               syncVideos(videos);
             }
           });
@@ -57,15 +69,13 @@
       });
     });
   
-    // Sync function to keep videos in the same container in time.
+    // Function to keep videos in the same container in sync
     function syncVideos(videos) {
-      // Designate the first video as the "master."
-      const masterVideo = videos[0];
-  
+      const masterVideo = videos[0]; // Choose the first video as the master
       masterVideo.addEventListener('timeupdate', () => {
         const masterTime = masterVideo.currentTime;
         videos.forEach(video => {
-          // For each video that isn't the master, correct time differences.
+          // Adjust only if the time difference is significant
           if (video !== masterVideo && Math.abs(video.currentTime - masterTime) > 0.1) {
             video.currentTime = masterTime;
           }
@@ -205,9 +215,9 @@
         </li>
     </ul>
     <div class="b-dics geometry">
-      <video autoplay muted loop src="./static/videos/bicycle/low.mp4" alt="Structure"></video>
-      <video autoplay muted loop src="./static/videos/bicycle/RGB.mp4" alt="Full"></video>
-      <video autoplay muted loop src="./static/videos/bicycle/high.mp4" alt="Detail"></video>
+      <video muted loop src="./static/videos/bicycle/low.mp4" alt="Structure"></video>
+      <video muted loop src="./static/videos/bicycle/RGB.mp4" alt="Full"></video>
+      <video muted loop src="./static/videos/bicycle/high.mp4" alt="Detail"></video>
     </div>
   </div>
 </section>
@@ -227,18 +237,18 @@
         </li>
     </ul>
     <div class="b-dics light">
-      <video autoplay muted loop src="./static/videos/counter/gs/Diffuse.mp4" alt="3D GS"></video>
-      <video autoplay muted loop src="./static/videos/counter/bs/Diffuse.mp4" alt="Ours"></video>
+      <video muted loop src="./static/videos/counter/gs/Specular.mp4" alt="3D GS"></video>
+      <video muted loop src="./static/videos/counter/bs/Specular.mp4" alt="Ours"></video>
     </div>
     <ul class="nav nav-tabs nav-fill nav-justified" id="light-decomposition" style="border-width: 0px 0px 1px 0px;">
       <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
-        <a class="nav-link active" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(0)">Diffuse</a>
+        <a class="nav-link" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(0)">Diffuse</a>
       </li>
       <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
         <a class="nav-link" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(1)">Full</a>
       </li>
       <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
-        <a class="nav-link" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(2)">Specular</a>
+        <a class="nav-link active" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(2)">Specular</a>
       </li>
   </ul>
   </div>
