@@ -28,6 +28,51 @@
   <script defer src="./static/js/fontawesome.all.min.js"></script>
   <script src="./static/js/bulma-carousel.min.js"></script>
   <script src="./static/js/bulma-slider.min.js"></script>
+  <script>
+    // Wait for the window to load so that all video elements are in the DOM.
+    window.addEventListener('load', () => {
+      // Find all containers with videos.
+      const containers = document.querySelectorAll('.b-dics');
+      
+      containers.forEach(container => {
+        const videos = container.querySelectorAll('video');
+        console.log(videos);
+        let readyCount = 0;
+  
+        videos.forEach(video => {
+          video.addEventListener('loadedmetadata', () => {
+            readyCount++;
+            // When all videos in this container are ready:
+            if (readyCount === videos.length) {
+              // Reset time and start playing each video.
+              videos.forEach(v => {
+                v.currentTime = 0;
+                v.play();
+              });
+              // Begin synchronizing the videos within this container.
+              syncVideos(videos);
+            }
+          });
+        });
+      });
+    });
+  
+    // Sync function to keep videos in the same container in time.
+    function syncVideos(videos) {
+      // Designate the first video as the "master."
+      const masterVideo = videos[0];
+  
+      masterVideo.addEventListener('timeupdate', () => {
+        const masterTime = masterVideo.currentTime;
+        videos.forEach(video => {
+          // For each video that isn't the master, correct time differences.
+          if (video !== masterVideo && Math.abs(video.currentTime - masterTime) > 0.1) {
+            video.currentTime = masterTime;
+          }
+        });
+      });
+    }
+  </script>
 </head>
 <body>
 
