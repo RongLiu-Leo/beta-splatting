@@ -28,61 +28,6 @@
   <script defer src="./static/js/fontawesome.all.min.js"></script>
   <script src="./static/js/bulma-carousel.min.js"></script>
   <script src="./static/js/bulma-slider.min.js"></script>
-  <script>
-    window.addEventListener('load', () => {
-      // Select every container that holds videos
-      const containers = document.querySelectorAll('.b-dics');
-  
-      containers.forEach(container => {
-        const videos = container.querySelectorAll('video');
-        let readyCount = 0;
-  
-        videos.forEach(video => {
-          // Add click listener to toggle play/pause for all videos in this container
-          video.addEventListener('click', () => {
-            // Use the clicked video's state to determine the action
-            const shouldPlay = video.paused;
-            videos.forEach(v => {
-              // If playing is desired, start them; otherwise, pause them.
-              if (shouldPlay) {
-                v.play();
-              } else {
-                v.pause();
-              }
-            });
-          });
-  
-          // Wait for metadata to load before starting
-          video.addEventListener('loadedmetadata', () => {
-            readyCount++;
-            if (readyCount === videos.length) {
-              // Set initial time to 0 and play all videos
-              videos.forEach(v => {
-                v.currentTime = 0;
-                v.play();
-              });
-              // Start synchronizing the videos within this container
-              syncVideos(videos);
-            }
-          });
-        });
-      });
-    });
-  
-    // Function to keep videos in the same container in sync
-    function syncVideos(videos) {
-      const masterVideo = videos[0]; // Choose the first video as the master
-      masterVideo.addEventListener('timeupdate', () => {
-        const masterTime = masterVideo.currentTime;
-        videos.forEach(video => {
-          // Adjust only if the time difference is significant
-          if (video !== masterVideo && Math.abs(video.currentTime - masterTime) > 0.1) {
-            video.currentTime = masterTime;
-          }
-        });
-      });
-    }
-  </script>
 </head>
 <body>
 

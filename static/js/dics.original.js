@@ -209,6 +209,51 @@ let defaultOptions = {
     if (mediaElements.length === 0) {
         console.warn("No images or videos found in the container.");
     }
+    const videos = mediaElements.filter(el => el.tagName.toLowerCase() === "video");
+    let readyCount = 0;
+
+    videos.forEach(video => {
+      // Add click listener to toggle play/pause for all videos in this container
+      video.addEventListener('click', () => {
+        // Use the clicked video's state to determine the action
+        const shouldPlay = video.paused;
+        videos.forEach(v => {
+          // If playing is desired, start them; otherwise, pause them.
+          if (shouldPlay) {
+            v.play();
+          } else {
+            v.pause();
+          }
+        });
+      });
+
+      // Wait for metadata to load before starting
+      video.addEventListener('loadedmetadata', () => {
+        readyCount++;
+        if (readyCount === videos.length) {
+          // Set initial time to 0
+          videos.forEach(v => {
+            v.currentTime = 0;
+          });
+          // Start synchronizing the videos within this container
+          syncVideos(videos);
+        }
+      });
+    });
+  
+    // Function to keep videos in the same container in sync
+    function syncVideos(videos) {
+      const masterVideo = videos[0]; // Choose the first video as the master
+      masterVideo.addEventListener('timeupdate', () => {
+        const masterTime = masterVideo.currentTime;
+        videos.forEach(video => {
+          // Adjust only if the time difference is significant
+          if (video !== masterVideo && Math.abs(video.currentTime - masterTime) > 0.1) {
+            video.currentTime = masterTime;
+          }
+        });
+      });
+    }
 
     return mediaElements;
 };
@@ -274,7 +319,20 @@ let defaultOptions = {
       dics._pushSections(calcMovePixels, position);
     };
   
-    dics.container.addEventListener("click", listener);
+    dics.container.addEventListener("click", function(event) {
+      let el = event.target;
+      let sliderFound = false;
+      while (el && el !== dics.container) {
+        if (el.classList && el.classList.contains("b-dics__slider")) {
+          sliderFound = true;
+          break;
+        }
+        el = el.parentElement;
+      }
+      if (sliderFound) {
+        listener(event);
+      }
+    });
   
     for (let i = 0; i < dics.sliders.length; i++) {
       let slider = dics.sliders[i];
