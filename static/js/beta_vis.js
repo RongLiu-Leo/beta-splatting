@@ -25,7 +25,14 @@ document.addEventListener("DOMContentLoaded", function() {
       }
 
     function computeGaussian(xValues) {
-        return xValues.map(x => Math.exp(-9 * x * x / 2));
+        return xValues.map(x => {
+            if (Array.isArray(x)) {
+                // Recursively process each row if x is an array (2D case)
+                return computeGaussian(x, b);
+            } else {
+                return Math.exp(-9 * x * x / 2);
+            }
+        });
       }
 
     // Generate x data for the plot
@@ -35,7 +42,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const slider = document.getElementById('interpolation-slider');
     let b = parseFloat(slider.value);
     let yValues = computeBeta(xValues, b);
-    let gaussianValues = computeGaussian(xValues);
+    const gaussianValues = computeGaussian(xValues);
 
     const trace1 = {
         x: xValues,
@@ -105,7 +112,21 @@ document.addEventListener("DOMContentLoaded", function() {
     cmin: 0,
     cmax: 1,
     colorbar: { title: 'Beta', tickvals: [0, 0.5, 1] },
-    name: 'Beta Surface'
+    name: 'Beta Surface',
+    opacity: 0.9
+    };
+
+    const trace3d_gaussian = {
+        x: xGrid,
+        y: yGrid,
+        z: computeGaussian(rGrid),
+        type: 'surface',
+        colorscale: 'Magma',
+        cmin: 0,
+        cmax: 1,
+        colorbar: { title: 'Gaussian', tickvals: [0, 0.5, 1] },
+        name: 'Gaussian Surface',
+        opacity: 0.3
     };
 
     const layout3d = {
@@ -119,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function() {
     };
 
     // Render the 3D surface plot
-    Plotly.newPlot('plot3d', [trace3d], layout3d);
+    Plotly.newPlot('plot3d', [trace3d, trace3d_gaussian], layout3d);
 
     // Update the plot when the slider value changes
     slider.addEventListener('input', function() {
@@ -127,6 +148,6 @@ document.addEventListener("DOMContentLoaded", function() {
         yValues = computeBeta(xValues, b);
         Plotly.update('plot', { y: [yValues] }, { title: `2D Beta Kernel` }, [0]);
         zGrid = computeBeta(rGrid, b);
-        Plotly.update('plot3d', { z: [zGrid] }, { title: '3D Beta Kernel' });
+        Plotly.update('plot3d', { z: [zGrid] }, { title: '3D Beta Kernel' }, [0]);
     });
   });
