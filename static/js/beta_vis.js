@@ -104,16 +104,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Define the 3D surface trace
     const trace3d = {
-    x: xGrid,
-    y: yGrid,
-    z: zGrid,
-    type: 'surface',
-    colorscale: 'Viridis',
-    cmin: 0,
-    cmax: 1,
-    colorbar: { title: 'Beta', tickvals: [0, 0.5, 1] },
-    name: 'Beta Surface',
-    opacity: 0.9
+        x: xGrid,
+        y: yGrid,
+        z: zGrid,
+        type: 'surface',
+        colorscale: 'Viridis',
+        cmin: 0,
+        cmax: 1,
+        colorbar: { title: 'Beta', tickvals: [0, 0.5, 1] },
+        name: 'Beta Surface',
+        opacity: 0.9
     };
 
     const trace3d_gaussian = {
@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", function() {
         y: yGrid,
         z: computeGaussian(rGrid),
         type: 'surface',
-        colorscale: 'Magma',
+        colorscale: 'Viridis',
         cmin: 0,
         cmax: 1,
         colorbar: { title: 'Gaussian', tickvals: [0, 0.5, 1] },
