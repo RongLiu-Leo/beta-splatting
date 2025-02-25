@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", function() {
     Plotly.newPlot('plot', [trace1, trace2], layout);
 
     // Generate grid data for the 3D surface
-    function generateGrid(n = 250) {
+    function generateGrid(n = 100) {
         const xGrid = generateXValues(n);
         const yGrid = generateXValues(n);
         const rGrid = [];
@@ -113,7 +113,8 @@ document.addEventListener("DOMContentLoaded", function() {
         cmax: 1,
         colorbar: { title: 'Beta', tickvals: [0, 0.5, 1] },
         name: 'Beta Surface',
-        opacity: 0.9
+        opacity: 0.9,
+        showscale: false,
     };
 
     const trace3d_gaussian = {
@@ -126,7 +127,8 @@ document.addEventListener("DOMContentLoaded", function() {
         cmax: 1,
         colorbar: { title: 'Gaussian', tickvals: [0, 0.5, 1] },
         name: 'Gaussian Surface',
-        opacity: 0.3
+        opacity: 0.3,
+        showscale: false,
     };
 
     const layout3d = {
@@ -136,7 +138,7 @@ document.addEventListener("DOMContentLoaded", function() {
         yaxis: { title: 'y', range: [-1, 1] },
         zaxis: { title: 'Beta', range: [0, 1] }
     },
-    margin: { t: 0, b: 0, l: 10, r: 10 }
+    margin: { t: 0, b: 0, l: 10, r: 10 },
     };
 
     // Render the 3D surface plot
