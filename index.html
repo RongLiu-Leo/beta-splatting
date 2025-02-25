@@ -28,6 +28,8 @@
   <script defer src="./static/js/fontawesome.all.min.js"></script>
   <script src="./static/js/bulma-carousel.min.js"></script>
   <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
+  <script src="./static/js/beta_vis.js"></script>
 </head>
 <body>
 
@@ -145,6 +147,20 @@
         </div>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 is-centered has-text-centered" style="margin-top: -20px">Beta Kernel</h2>
+    <div class="has-text-centered">
+      <p style=" display: flex;
+        justify-content: center;
+        align-items: center;">b = 0
+      </p>
+      <input class="slider is-fullwidth is-large is-info is-danger" id="interpolation-slider" step="0.1" min="-5" max="5" value="0" type="range" style="color: #990000; margin-top: 0px;margin-bottom: 0px;" oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
+    </div>
+    <div id="plot" style="width: 100%;"></div>
   </div>
 </section>
 
