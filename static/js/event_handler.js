@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', domReady);
                 mediaContainer.replaceChild(newMedia, media);
             }
 
-            let scene_list = document.getElementById("scene").children;
+            let scene_list = document.getElementById("scene-selection").children;
             for (let i = 0; i < scene_list.length; i++) {
                 if (idx == i) {
                     scene_list[i].children[0].className = "nav-link active"
