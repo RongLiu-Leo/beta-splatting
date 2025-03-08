@@ -156,6 +156,7 @@ def training(args):
 
             beta_model.optimizer.step()
             beta_model.optimizer.zero_grad(set_to_none=True)
+            torch.cuda.empty_cache()
 
             if not args.disable_viewer:
                 num_train_rays_per_step = (
