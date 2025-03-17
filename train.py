@@ -110,8 +110,9 @@ def training(args):
         loss = (1.0 - args.lambda_dssim) * Ll1 + args.lambda_dssim * (
             1.0 - fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0))
         )
-        loss += args.opacity_reg * torch.abs(beta_model.get_opacity).mean()
-        loss += args.scale_reg * torch.abs(beta_model.get_scaling).mean()
+        if args.densify_from_iter < iteration < args.densify_until_iter:
+            loss += args.opacity_reg * torch.abs(beta_model.get_opacity).mean()
+            loss += args.scale_reg * torch.abs(beta_model.get_scaling).mean()
 
         loss.backward()
         iter_end.record()
@@ -156,7 +157,6 @@ def training(args):
 
             beta_model.optimizer.step()
             beta_model.optimizer.zero_grad(set_to_none=True)
-            torch.cuda.empty_cache()
 
             if not args.disable_viewer:
                 num_train_rays_per_step = (

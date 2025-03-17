@@ -568,6 +568,8 @@ class BetaModel:
         self._scaling = optimizable_tensors["scaling"]
         self._rotation = optimizable_tensors["rotation"]
 
+        torch.cuda.empty_cache()
+
         return optimizable_tensors
 
     def _update_params(self, idxs, ratio):
