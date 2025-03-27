@@ -211,14 +211,13 @@ class Scene:
         lpips_test /= len(test_view_stack)
 
         result = {
-            "ours_best": {
-                "SSIM": ssim_test.item(),
-                "PSNR": psnr_test.item(),
-                "LPIPS": lpips_test.item(),
-            }
+            "SSIM": ssim_test.item(),
+            "PSNR": psnr_test.item(),
+            "LPIPS": lpips_test.item(),
         }
-        with open(
-            os.path.join(self.model_path, "point_cloud/iteration_best/metrics.json"),
-            "w",
-        ) as f:
-            json.dump(result, f, indent=True)
+        print(result)
+        # with open(
+        #     os.path.join(self.model_path, "point_cloud/iteration_best/metrics.json"),
+        #     "w",
+        # ) as f:
+        #     json.dump(result, f, indent=True)
