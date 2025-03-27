@@ -19,11 +19,12 @@ from plyfile import PlyData, PlyElement
 from utils.sh_utils import RGB2SH
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
+from utils.compress_utils  import compress_png, decompress_png
 from sklearn.neighbors import NearestNeighbors
 import math
 import torch.nn.functional as F
 from gsplat.rendering import rasterization
-
+import json
 
 def knn(x, K=4):
     x_np = x.cpu().numpy()
@@ -207,6 +208,17 @@ class BetaModel:
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
         self._beta = nn.Parameter(betas.requires_grad_(True))
 
+    def prune(self, live_mask):
+        self._xyz = self._xyz[live_mask]
+        self._sh0 = self._sh0[live_mask]
+        self._shN = self._shN[live_mask]
+        self._sb_params = self._sb_params[live_mask]
+        self._scaling = self._scaling[live_mask]
+        self._rotation = self._rotation[live_mask]
+        self._opacity = self._opacity[live_mask]
+        self._beta = self._beta[live_mask]
+
+
     def training_setup(self, training_args):
         l = [
             {
@@ -319,6 +331,39 @@ class BetaModel:
         el = PlyElement.describe(elements, "vertex")
         PlyData([el]).write(path)
 
+    def save_png(self, path):
+        path = os.path.join(path, "png")
+        opacities = self.get_opacity
+        N = opacities.numel()
+        n_sidelen = int(N**0.5)
+        n_crop = N - n_sidelen**2
+        index = torch.argsort(opacities.squeeze(), descending=True)
+        mask = torch.zeros(N, dtype=torch.bool, device=opacities.device).scatter_(0, index[:-n_crop], True)
+        meta={}
+        self.prune(mask.squeeze())
+        param_dict = {
+            "xyz": self._xyz,
+            "sh0": self._sh0,
+            "shN": self._shN if self.max_sh_degree else None,
+            "opacity": self._opacity,
+            "beta": self._beta,
+            "scaling": self._scaling,
+            "rotation": self._rotation,
+            "sb_params": self._sb_params if self.sb_number else None,
+        }
+        for k in param_dict.keys():
+            if param_dict[k] is not None:
+                if k == "sb_params":
+                    for i in range(self.sb_number):
+                        meta[f"sb_{i}_color"] = compress_png(path, f"sb_{i}_color", param_dict[k][:, i, :3], n_sidelen)
+
+                        meta[f"sb_{i}_direction"] = compress_png(path, f"sb_{i}_direction", param_dict[k][:, i, 3:], n_sidelen)
+                else:
+                    meta[k] = compress_png(path, k, param_dict[k], n_sidelen)
+
+        with open(os.path.join(path, "meta.json"), "w") as f:
+            json.dump(meta, f)
+
     def load_ply(self, path):
         plydata = PlyData.read(path)
 
@@ -419,6 +464,64 @@ class BetaModel:
 
         self.active_sh_degree = self.max_sh_degree
 
+
+    def load_png(self, path):
+        with open(os.path.join(path, "meta.json"), "r") as f:
+            meta = json.load(f)
+        xyz = decompress_png(path, "xyz", meta["xyz"])
+        sh0 = decompress_png(path, "sh0", meta["sh0"])
+        
+        shN = decompress_png(path, "shN", meta["shN"]) if self.max_sh_degree else np.zeros((xyz.shape[0], (self.max_sh_degree + 1) ** 2 - 1, 3))
+        opacity = decompress_png(path, "opacity", meta["opacity"])
+        beta = decompress_png(path, "beta", meta["beta"])
+        scaling = decompress_png(path, "scaling", meta["scaling"])
+        rotation = decompress_png(path, "rotation", meta["rotation"])
+        if self.sb_number:
+            sb_params_list = []
+            for i in range(self.sb_number):
+                color = decompress_png(path, f"sb_{i}_color", meta[f"sb_{i}_color"])
+                direction = decompress_png(path, f"sb_{i}_direction", meta[f"sb_{i}_direction"])
+                # Concatenate along the feature dimension (expecting 3 channels each)
+                sb = np.concatenate([color, direction], axis=1)  # shape: (num_points, 6)
+                sb_params_list.append(sb)
+            # Stack to get shape (num_points, 6, sb_number)
+            sb_params = np.stack(sb_params_list, axis=2)
+        else:
+            sb_params = np.zeros((xyz.shape[0], 6, self.sb_number))
+
+
+        self._xyz = nn.Parameter(
+            torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True)
+        )
+        self._sh0 = nn.Parameter(
+            torch.tensor(sh0, dtype=torch.float, device="cuda")
+            .contiguous()
+            .requires_grad_(True)
+        )
+        self._shN = nn.Parameter(
+            torch.tensor(shN, dtype=torch.float, device="cuda")
+            .contiguous()
+            .requires_grad_(True)
+        )
+        self._opacity = nn.Parameter(
+            torch.tensor(opacity, dtype=torch.float, device="cuda").requires_grad_(True)
+        )
+        self._beta = nn.Parameter(
+            torch.tensor(beta, dtype=torch.float, device="cuda").requires_grad_(True)
+        )
+        self._scaling = nn.Parameter(
+            torch.tensor(scaling, dtype=torch.float, device="cuda").requires_grad_(True)
+        )
+        self._rotation = nn.Parameter(
+            torch.tensor(rotation, dtype=torch.float, device="cuda").requires_grad_(True)
+        )
+        self._sb_params = nn.Parameter(
+            torch.tensor(sb_params, dtype=torch.float, device="cuda")
+            .transpose(1, 2)
+            .contiguous()
+            .requires_grad_(True)
+        )
+    
     def replace_tensor_to_optimizer(self, tensor, name):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
