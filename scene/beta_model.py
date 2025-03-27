@@ -348,7 +348,7 @@ class BetaModel:
             "opacity": self._opacity,
             "beta": self._beta,
             "scaling": self._scaling,
-            "rotation": self._rotation,
+            "rotation": self.get_rotation,
             "sb_params": self._sb_params if self.sb_number else None,
         }
         for k in param_dict.keys():
@@ -358,6 +358,8 @@ class BetaModel:
                         meta[f"sb_{i}_color"] = compress_png(path, f"sb_{i}_color", param_dict[k][:, i, :3], n_sidelen)
 
                         meta[f"sb_{i}_direction"] = compress_png(path, f"sb_{i}_direction", param_dict[k][:, i, 3:], n_sidelen)
+                elif k == "xyz":
+                    meta[k] = compress_png(path, k, param_dict[k], n_sidelen, bit=32)
                 else:
                     meta[k] = compress_png(path, k, param_dict[k], n_sidelen)
 
