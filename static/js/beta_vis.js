@@ -44,20 +44,29 @@ document.addEventListener("DOMContentLoaded", function() {
     let yValues = computeBeta(xValues, b);
     const gaussianValues = computeGaussian(xValues);
 
+    // Define custom colorscale
+    const customColorscale = [
+        [0.0, '#264653'],
+        [0.25, '#2a9d8f'],
+        [0.5, '#e9c46a'],
+        [0.75, '#f4a261'],
+        [1.0, '#e76f51']
+    ];
+
     const trace1 = {
         x: xValues,
         y: yValues,
         mode: 'lines',
-        line: { color: 'blue' },
+        line: { color: '#264653' },  // Using first color from scale
         name: `Beta`
-      };
+    };
 
     const trace2 = {
-    x: xValues,
-    y: gaussianValues,
-    mode: 'lines',
-    line: { color: 'red' },
-    name: 'Gaussian'
+        x: xValues,
+        y: gaussianValues,
+        mode: 'lines',
+        line: { color: '#e76f51' },  // Using last color from scale
+        name: 'Gaussian'
     };
 
     const layout = {
@@ -108,12 +117,12 @@ document.addEventListener("DOMContentLoaded", function() {
         y: yGrid,
         z: zGrid,
         type: 'surface',
-        colorscale: 'Viridis',
+        colorscale: customColorscale,
         cmin: 0,
         cmax: 1,
         colorbar: { title: 'Beta', tickvals: [0, 0.5, 1] },
         name: 'Beta Surface',
-        opacity: 0.9,
+        opacity: 0.99,
         showscale: false,
     };
 
@@ -122,21 +131,24 @@ document.addEventListener("DOMContentLoaded", function() {
         y: yGrid,
         z: computeGaussian(rGrid),
         type: 'surface',
-        colorscale: 'Viridis',
+        colorscale: [
+          [0, '#264653'],
+          [1, '#e76f51']
+        ],
         cmin: 0,
         cmax: 1,
         colorbar: { title: 'Gaussian', tickvals: [0, 0.5, 1] },
         name: 'Gaussian Surface',
-        opacity: 0.3,
+        opacity: 0.35,
         showscale: false,
     };
 
     const layout3d = {
     title: '3D Beta Kernel',
     scene: {
-        xaxis: { title: 'x', range: [-1, 1] },
-        yaxis: { title: 'y', range: [-1, 1] },
-        zaxis: { title: 'Beta', range: [0, 1] }
+        xaxis: { title: 'x', range: [-1, 1], showgrid: false, showline: false, zeroline: false, showticklabels: false },
+        yaxis: { title: 'y', range: [-1, 1], showgrid: false, showline: false, zeroline: false, showticklabels: false },
+        zaxis: { title: 'Beta', range: [0, 1], showgrid: false, showline: false, zeroline: false, showticklabels: false }
     },
     margin: { t: 0, b: 0, l: 10, r: 10 },
     };

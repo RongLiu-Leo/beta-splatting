@@ -1,0 +1,16 @@
+LICENSE
+LICENSE_GAUSSIAN_SPLATTING.md
+README.md
+setup.py
+arguments/__init__.py
+beta_splatting.egg-info/PKG-INFO
+beta_splatting.egg-info/SOURCES.txt
+beta_splatting.egg-info/dependency_links.txt
+beta_splatting.egg-info/requires.txt
+beta_splatting.egg-info/top_level.txt
+lpipsPyTorch/__init__.py
+scene/__init__.py
+scene/beta_model.py
+scene/cameras.py
+scene/colmap_loader.py
+scene/dataset_readers.py

@@ -1,4 +1,12 @@
 document.addEventListener("DOMContentLoaded", function() {
+    // Define custom colorscale
+    const customColorscale = [
+      [0.0, '#264653'],
+      [0.25, '#2a9d8f'],
+      [0.5, '#e9c46a'],
+      [0.75, '#f4a261'],
+      [1.0, '#e76f51']
+  ];
 
     // Helper: create a linearly spaced array.
     function linspace(start, stop, num) {
@@ -70,7 +78,7 @@ document.addEventListener("DOMContentLoaded", function() {
       z: Z,
       surfacecolor: F,
       type: 'surface',
-      colorscale: 'Viridis',
+      colorscale: customColorscale,
       cmin: 0,
       cmax: 1,
       showscale: false,  // Remove the colorbar.
@@ -80,9 +88,9 @@ document.addEventListener("DOMContentLoaded", function() {
     const layoutSB = {
       title: 'Spherical Beta',
       scene: {
-        xaxis: { title: 'x', range: [-1, 1] },
-        yaxis: { title: 'y', range: [-1, 1] },
-        zaxis: { title: 'z', range: [-1, 1] }
+        xaxis: { title: 'x', range: [-1, 1], showgrid: false, showline: false, zeroline: true, showticklabels: false },
+        yaxis: { title: 'y', range: [-1, 1], showgrid: false, showline: false, zeroline: true, showticklabels: false },
+        zaxis: { title: 'z', range: [-1, 1], showgrid: false, showline: false, zeroline: true, showticklabels: false }
       },
       margin: { t: 0, b: 0, l: 0, r: 0 }
     };

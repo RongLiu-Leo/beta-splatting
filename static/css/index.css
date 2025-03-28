@@ -179,7 +179,7 @@ li {
 
 /* Create an active/current tablink class */
 .nav-tabs .nav-link.active {
-  background-color: #990000;
+  background-color: #003566;
   color:white;
   font-weight: 500;
 }

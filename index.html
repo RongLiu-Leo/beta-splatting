@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="description"
-        content="AtomGS">
+        content="Deformable Beta Splatting">
   <meta name="keywords" content="Deformable Beta Splatting">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Deformable Beta Splatting</title>
@@ -64,8 +64,8 @@
           </div>
 
           <div class="is-size-5 publication-authors">
-            <span class="author-block" style="color:#990000;">
-              <a href="https://usc.edu/" style="color:#990000;">University of Southern California</a>
+            <span class="author-block" style="color:#d66853;">
+              <a href="https://usc.edu/" style="color:#d66853;">University of Southern California</a>
             </span>
           </div>
 
@@ -160,7 +160,7 @@
         justify-content: center;
         align-items: center;">b = 0
       </p>
-      <input class="slider is-fullwidth is-large is-info is-danger" id="interpolation-slider" step="0.1" min="-5" max="5" value="0" type="range" style="color: #990000; margin-top: 0px;margin-bottom: 0px;" oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
+      <input class="slider is-fullwidth is-large is-info" id="interpolation-slider" step="0.1" min="-5" max="5" value="0" type="range" style="color: #d66853; margin-top: 0px;margin-bottom: 0px;" oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
     </div>
     <div style="display: flex; flex-wrap: nowrap; gap: 0px;">
       <!-- 2D Plot -->
@@ -196,15 +196,15 @@
     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
       <div class="has-text-centered" style="flex: 1 1 0;">
         <p style="display: flex; justify-content: center; align-items: center;">b = 0</p>
-        <input class="slider is-fullwidth is-large is-info is-danger" id="b-slider" step="0.1" min="-5" max="5" value="0" type="range" style="margin: 0px;"  oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
+        <input class="slider is-fullwidth is-large is-info" id="b-slider" step="0.1" min="-5" max="5" value="0" type="range" style="margin: 0px;"  oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
       </div>
       <div class="has-text-centered" style="flex: 1 1 0;">
         <p style="display: flex; justify-content: center; align-items: center;">θ = 1</p>
-        <input class="slider is-fullwidth is-large is-info is-danger" id="theta-slider" step="0.01" min="0" max="3.14" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'θ = ' + (this.value)">
+        <input class="slider is-fullwidth is-large is-info" id="theta-slider" step="0.01" min="0" max="3.14" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'θ = ' + (this.value)">
       </div>
       <div class="has-text-centered" style="flex: 1 1 0;">
         <p style="display: flex; justify-content: center; align-items: center;">φ = 1</p>
-        <input class="slider is-fullwidth is-large is-info is-danger" id="phi-slider" step="0.01" min="0" max="6.28" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'φ = ' + (this.value)">
+        <input class="slider is-fullwidth is-large is-info" id="phi-slider" step="0.01" min="0" max="6.28" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'φ = ' + (this.value)">
       </div>
     </div>
     <div id="plotsb" style="width: 100%; height: 600px;"></div>
@@ -249,15 +249,15 @@
     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
       <div class="has-text-centered" style="flex: 1 1 0;">
         <p style="display: flex; justify-content: center; align-items: center;">b = 0</p>
-        <input class="slider is-fullwidth is-large is-info is-danger" id="b-mcmc" step="0.1" min="-5" max="5" value="0" type="range" style="margin: 0px;"  oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
+        <input class="slider is-fullwidth is-large is-info" id="b-mcmc" step="0.1" min="-5" max="5" value="0" type="range" style="margin: 0px;"  oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
       </div>
       <div class="has-text-centered" style="flex: 1 1 0;">
         <p style="display: flex; justify-content: center; align-items: center;">0 = 1</p>
-        <input class="slider is-fullwidth is-large is-info is-danger" id="o-mcmc" step="0.01" min="0" max="1" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'o = ' + (this.value)">
+        <input class="slider is-fullwidth is-large is-info" id="o-mcmc" step="0.01" min="0" max="1" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'o = ' + (this.value)">
       </div>
       <div class="has-text-centered" style="flex: 1 1 0;">
         <p style="display: flex; justify-content: center; align-items: center;">N = 6</p>
-        <input class="slider is-fullwidth is-large is-info is-danger" id="N-mcmc" step="1" min="2" max="10" value="6" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'N = ' + (this.value)">
+        <input class="slider is-fullwidth is-large is-info" id="N-mcmc" step="1" min="2" max="10" value="6" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'N = ' + (this.value)">
       </div>
     </div>
     <div style="display: flex; flex-wrap: nowrap; gap: 0px;">

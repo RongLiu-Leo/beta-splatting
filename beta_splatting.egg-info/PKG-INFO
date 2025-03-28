@@ -1,0 +1,31 @@
+Metadata-Version: 2.2
+Name: beta_splatting
+Version: 0.1.0
+Summary: Python package for differentiable rasterization of deformable beta splatting
+Home-page: https://github.com/RongLiu-Leo/beta-splatting
+Keywords: beta,splatting,cuda
+License-File: LICENSE
+License-File: LICENSE_GAUSSIAN_SPLATTING.md
+Requires-Dist: pycolmap@ git+https://github.com/rmbrualla/pycolmap@cc7ea4b7301720ac29287dbe450952511b32125e
+Requires-Dist: plyfile
+Requires-Dist: viser
+Requires-Dist: nerfview@ git+https://github.com/hangg7/nerfview.git
+Requires-Dist: imageio[ffmpeg]
+Requires-Dist: numpy<2.0.0
+Requires-Dist: scikit-learn
+Requires-Dist: tqdm
+Requires-Dist: torchmetrics[image]
+Requires-Dist: opencv-python
+Requires-Dist: tyro>=0.8.8
+Requires-Dist: Pillow
+Requires-Dist: tensorboard
+Requires-Dist: tensorly
+Requires-Dist: pyyaml
+Requires-Dist: matplotlib
+Requires-Dist: pandas
+Requires-Dist: tabulate
+Requires-Dist: fused-ssim@ git+https://github.com/rahul-goel/fused-ssim@1272e21a282342e89537159e4bad508b19b34157
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: requires-dist
+Dynamic: summary

@@ -1,4 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
+  
+  // Define custom colorscale
+  const customColorscale = [
+    [0.0, '#264653'],
+    [0.25, '#2a9d8f'],
+    [0.5, '#e9c46a'],
+    [0.75, '#f4a261'],
+    [1.0, '#e76f51']
+  ];
+
   // Generate an array of n values between -1 and 1.
   function generateXValues(n) {
     const step = 2 / (n - 1);
@@ -56,16 +66,25 @@ document.addEventListener("DOMContentLoaded", () => {
     x: xValues,
     y: initialBeta.map(val => initialO * val),
     mode: "lines",
-    line: { color: "blue" },
+    line: { color: "#264653" },
     name: "Beta"
   };
   const trace2 = {
     x: xValues,
     y: initialDensification,
     mode: "lines",
-    line: { color: "red" },
+    line: { color: "#e9c46a" },
     name: "Densification"
   };
+
+  // const trace3 = {
+  //   x: xValues,
+  //   y: initialBeta.map((val, i) => Math.abs((initialO * val) - initialDensification[i])),
+  //   mode: "lines",
+  //   line: { color: "#e76f51" },
+  //   name: "Error"
+  // };
+
   const layoutLine = {
     title: "2D Beta Kernel",
     xaxis: { title: "x", range: [-1.1, 1.1] },
@@ -108,15 +127,15 @@ document.addEventListener("DOMContentLoaded", () => {
           // Beta circle at (0,2): shift y upward by 2.
           betaCircle.x.push(xi);
           betaCircle.y.push(yj + 2);
-          betaCircle.colors.push(`rgba(0,0,255,${betaVal.toFixed(2)})`);
+          betaCircle.colors.push(`rgba(38,70,83,${betaVal.toFixed(2)})`);
           // Densification circle at (0,0): no shift.
           densCircle.x.push(xi);
           densCircle.y.push(yj);
-          densCircle.colors.push(`rgba(255,0,0,${densVal.toFixed(2)})`);
+          densCircle.colors.push(`rgba(233,196,106,${densVal.toFixed(2)})`);
           // Error circle at (0,-2): shift y downward by 2.
           errorCircle.x.push(xi);
           errorCircle.y.push(yj - 2);
-          errorCircle.colors.push(`rgba(0,255,0,${errorVal.toFixed(2)})`);
+          errorCircle.colors.push(`rgba(231,111,81,${errorVal.toFixed(2)})`);
         }
       }
     }
@@ -157,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     x: [null],
     y: [null],
     mode: "markers",
-    marker: { size: 6, color: "rgba(0,0,255,1)" },
+    marker: { size: 6, color: "#264653" },
     name: "Beta",
     legendgroup: "beta",
     showlegend: true,
@@ -167,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
     x: [null],
     y: [null],
     mode: "markers",
-    marker: { size: 6, color: "rgba(255,0,0,1)" },
+    marker: { size: 6, color: "#e9c46a" },
     name: "Densification",
     legendgroup: "dens",
     showlegend: true,
@@ -177,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
     x: [null],
     y: [null],
     mode: "markers",
-    marker: { size: 6, color: "rgba(0,255,0,1)" },
+    marker: { size: 6, color: "#e76f51" },
     name: "Error",
     legendgroup: "error",
     showlegend: true,
@@ -231,9 +250,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Update dummy traces with the first color from each set.
     Plotly.update("plotmcmc_splat", {
       "marker.color": [
-        ["rgba(0,0,255,1)"],
-        ["rgba(255,0,0,1)"],
-        ["rgba(0,255,0,1)"]
+        ["#264653"],
+        ["#e9c46a"],
+        ["#e76f51"]
       ]
     }, {}, [3, 4, 5]);
   }
