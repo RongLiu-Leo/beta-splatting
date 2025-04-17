@@ -19,7 +19,7 @@ from plyfile import PlyData, PlyElement
 from utils.sh_utils import RGB2SH
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
-from utils.compress_utils  import compress_png, decompress_png
+from utils.compress_utils  import compress_png, decompress_png, sort_param_dict
 from sklearn.neighbors import NearestNeighbors
 import math
 import torch.nn.functional as F
@@ -333,14 +333,16 @@ class BetaModel:
 
     def save_png(self, path):
         path = os.path.join(path, "png")
+        mkdir_p(path)
         opacities = self.get_opacity
         N = opacities.numel()
         n_sidelen = int(N**0.5)
         n_crop = N - n_sidelen**2
-        index = torch.argsort(opacities.squeeze(), descending=True)
-        mask = torch.zeros(N, dtype=torch.bool, device=opacities.device).scatter_(0, index[:-n_crop], True)
+        if n_crop:
+            index = torch.argsort(opacities.squeeze(), descending=True)
+            mask = torch.zeros(N, dtype=torch.bool, device=opacities.device).scatter_(0, index[:-n_crop], True)
+            self.prune(mask.squeeze())
         meta={}
-        self.prune(mask.squeeze())
         param_dict = {
             "xyz": self._xyz,
             "sh0": self._sh0,
@@ -351,13 +353,14 @@ class BetaModel:
             "rotation": self.get_rotation,
             "sb_params": self._sb_params if self.sb_number else None,
         }
+        param_dict = sort_param_dict(param_dict, n_sidelen)
         for k in param_dict.keys():
             if param_dict[k] is not None:
                 if k == "sb_params":
                     for i in range(self.sb_number):
                         meta[f"sb_{i}_color"] = compress_png(path, f"sb_{i}_color", param_dict[k][:, i, :3], n_sidelen)
 
-                        meta[f"sb_{i}_direction"] = compress_png(path, f"sb_{i}_direction", param_dict[k][:, i, 3:], n_sidelen)
+                        meta[f"sb_{i}_lobe"] = compress_png(path, f"sb_{i}_lobe", param_dict[k][:, i, 3:], n_sidelen)
                 elif k == "xyz":
                     meta[k] = compress_png(path, k, param_dict[k], n_sidelen, bit=32)
                 else:
@@ -482,7 +485,7 @@ class BetaModel:
             sb_params_list = []
             for i in range(self.sb_number):
                 color = decompress_png(path, f"sb_{i}_color", meta[f"sb_{i}_color"])
-                direction = decompress_png(path, f"sb_{i}_direction", meta[f"sb_{i}_direction"])
+                direction = decompress_png(path, f"sb_{i}_lobe", meta[f"sb_{i}_lobe"])
                 # Concatenate along the feature dimension (expecting 3 channels each)
                 sb = np.concatenate([color, direction], axis=1)  # shape: (num_points, 6)
                 sb_params_list.append(sb)

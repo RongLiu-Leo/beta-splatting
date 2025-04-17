@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from typing import Dict, Any
 from torch import Tensor
+from plas import sort_with_plas
 
 def compress_png(compress_dir: str, param_name: str, params: Tensor, n_sidelen: int, bit: int = 8) -> Dict[str, Any]:
     """
@@ -21,12 +22,7 @@ def compress_png(compress_dir: str, param_name: str, params: Tensor, n_sidelen: 
     """
     # If tensor is empty, just store meta
     if params.numel() == 0:
-        meta = {
-            "shape": list(params.shape),
-            "dtype": str(params.dtype).split(".")[1],
-            "bit": bit
-        }
-        return meta
+        raise ValueError(f"Parameter tensor {param_name} is empty. Cannot compress.")
 
     # Reshape tensor into a grid and compute min/max for normalization
     grid = params.reshape((n_sidelen, n_sidelen, -1)).squeeze()
@@ -119,3 +115,26 @@ def decompress_png(compress_dir: str, param_name: str, meta: dict) -> np.ndarray
     params = np.reshape(grid, meta["shape"])
     params = params.astype(meta["dtype"])
     return params
+
+def sort_param_dict(param_dict: Dict[str, Tensor], n_sidelen: int, verbose: bool = False) -> Dict[str, Tensor]:
+
+    n_gs = n_sidelen**2
+
+    params = torch.cat([param_dict[k].reshape(n_gs, -1)
+                        for k in param_dict.keys() if param_dict[k] is not None], dim=-1)
+    
+    shuffled_indices = torch.randperm(
+        params.shape[0], device=params.device
+    )
+    params = params[shuffled_indices]
+    
+    grid = params.reshape((n_sidelen, n_sidelen, -1))
+    _, sorted_indices = sort_with_plas(
+        grid.permute(2, 0, 1), improvement_break=1e-4, verbose=verbose
+    )
+    sorted_indices = sorted_indices.squeeze().flatten()
+    sorted_indices = shuffled_indices[sorted_indices]
+    for k, v in param_dict.items():
+        if v is not None:
+            param_dict[k] = v[sorted_indices]
+    return param_dict
