@@ -37,13 +37,17 @@ This project is built on top of the [Original 3DGS](https://github.com/graphdeco
    cd beta-splatting
    ```
 1. **Set Up the Conda Environment:**
+
+    If you are on Linux, please directly use the `environment.yaml` installation method:
+    ```sh
+    conda env create -n beta_splatting
+    conda activate beta_splatting
+    ```
+    Otherwise, please manually create an environment and install [Pytorch](https://pytorch.org/get-started/locally/) (Based on Your CUDA Version)
     ```sh
     conda create -y -n beta_splatting python=3.10
     conda activate beta_splatting
-    ```
-1. **Install [Pytorch](https://pytorch.org/get-started/locally/) (Based on Your CUDA Version)**
-    ```sh
-    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu<118,121,124, or other cuda versions>
     ```
 1. **Install Dependencies and Submodules:**
     ```sh
