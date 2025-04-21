@@ -1,0 +1,84 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "extends": ["plugin:react/recommended", "standard"],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "globals": {
+    "GPU": "readonly",
+    "GPUAdapter": "readonly",
+    "GPUAdapterInfo": "readonly",
+    "GPUBindGroup": "readonly",
+    "GPUBindGroupLayout": "readonly",
+    "GPUBuffer": "readonly",
+    "GPUCanvasContext": "readonly",
+    "GPUCommandBuffer": "readonly",
+    "GPUCommandEncoder": "readonly",
+    "GPUCompilationInfo": "readonly",
+    "GPUCompilationMessage": "readonly",
+    "GPUComputePassEncoder": "readonly",
+    "GPUComputePipeline": "readonly",
+    "GPUDevice": "readonly",
+    "GPUDeviceLostInfo": "readonly",
+    "GPUError": "readonly",
+    "GPUExternalTexture": "readonly",
+    "GPUInternalError": "readonly",
+    "GPUOutOfMemoryError": "readonly",
+    "GPUPipelineError": "readonly",
+    "GPUPipelineLayout": "readonly",
+    "GPUQuerySet": "readonly",
+    "GPUQueue": "readonly",
+    "GPURenderBundle": "readonly",
+    "GPURenderBundleEncoder": "readonly",
+    "GPURenderPassEncoder": "readonly",
+    "GPURenderPipeline": "readonly",
+    "GPUSampler": "readonly",
+    "GPUShaderModule": "readonly",
+    "GPUSupportedLimits": "readonly",
+    "GPUTexture": "readonly",
+    "GPUTextureView": "readonly",
+    "GPUUncapturedErrorEvent": "readonly",
+    "GPUValidationError": "readonly",
+    "GPUBufferUsage": "readonly",
+    "GPUColorWrite": "readonly",
+    "GPUMapMode": "readonly",
+    "GPUShaderStage": "readonly",
+    "GPUTextureUsage": "readonly",
+    "GPUBufferBindingType": "readonly",
+    "GPUTextureFormat": "readonly",
+    "GPUBlendFactor": "readonly",
+    "GPUBlendOperation": "readonly",
+    "FrameRequestCallback": "readonly",
+    "GPURenderPassDescriptor": "readonly",
+    "GPUStoreOp": "readonly",
+    "GPULoadOp": "readonly",
+    "GPUCanvasAlphaMode": "readonly",
+    "GPUBindGroupEntry": "readonly",
+    "GPUBufferBinding": "readonly",
+    "GPUIndexFormat": "readonly"
+  },
+  "plugins": ["react", "@typescript-eslint"],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "space-before-function-paren": "off",
+    "comma-dangle": "off",
+    "no-empty-pattern": "off",
+    "no-unused-vars": "warn",
+    "camelcase": "off",
+    "new-cap": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+}
