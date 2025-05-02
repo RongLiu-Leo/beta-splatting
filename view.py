@@ -15,9 +15,9 @@ def viewing(args):
     server = viser.ViserServer(port=args.port, verbose=False)
     viewer = BetaViewer(
         server=server,
-        render_fn=lambda camera_state, img_wh: (
+        render_fn=lambda camera_state, render_tab_state: (
             lambda mask: beta_model.view(
-                camera_state, img_wh, viewer.gui_dropdown.value, mask
+                camera_state, render_tab_state, viewer.gui_dropdown.value, mask
             )
         )(
             torch.logical_and(
