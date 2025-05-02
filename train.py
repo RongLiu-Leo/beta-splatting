@@ -23,7 +23,7 @@ from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, ViewerParams, OptimizationParams
 from scene.beta_model import build_scaling_rotation
 import viser
-import nerfview
+from scene.beta_viewer import BetaViewer
 import time
 
 
@@ -42,20 +42,20 @@ def training(args):
 
     if not args.disable_viewer:
         server = viser.ViserServer(port=args.port, verbose=False)
-        viewer = nerfview.Viewer(
+        viewer = BetaViewer(
             server=server,
-            render_fn=lambda camera_state, img_wh: beta_model.view(
-                camera_state, img_wh, gui_dropdown.value
+            render_fn=lambda camera_state, img_wh: (
+                lambda mask: beta_model.view(
+                    camera_state, img_wh, viewer.gui_dropdown.value, mask
+                )
+            )(
+                torch.logical_and(
+                    beta_model._beta >= viewer.gui_multi_slider.value[0],
+                    beta_model._beta <= viewer.gui_multi_slider.value[1],
+                ).squeeze()
             ),
             mode="training",
         )
-        with server.gui.add_folder("Render Mode"):
-            gui_dropdown = server.gui.add_dropdown(
-                "Mode",
-                ["RGB", "Diffuse", "Specular", "Depth"],
-                initial_value="RGB",
-            )
-            gui_dropdown.on_update(viewer.rerender)
 
     iter_start = torch.cuda.Event(enable_timing=True)
     iter_end = torch.cuda.Event(enable_timing=True)
@@ -84,7 +84,7 @@ def training(args):
 
         iter_start.record()
         if not args.disable_viewer:
-            while viewer.state.status == "paused":
+            while viewer.state == "paused":
                 time.sleep(0.01)
             viewer.lock.acquire()
             tic = time.time()
@@ -167,7 +167,7 @@ def training(args):
                 num_train_rays_per_sec = (
                     num_train_rays_per_step * num_train_steps_per_sec
                 )
-                viewer.state.num_train_rays_per_sec = num_train_rays_per_sec
+                viewer.render_tab_state.num_train_rays_per_sec = num_train_rays_per_sec
                 viewer.update(iteration, num_train_rays_per_step)
 
             # Patience-based best model saving in eval mode

@@ -51,7 +51,7 @@ def rendering(args):
             image_cpu = image.clamp(0, 1).cpu().permute(1, 2, 0).numpy()
             im = Image.fromarray((image_cpu * 255).astype("uint8"))
             im.save(os.path.join(output_dir, f"{render_mode}_{i}.png"))
-            
+
             gt = cam.original_image[0:3, :, :]
             image_cpu = gt.clamp(0, 1).cpu().permute(1, 2, 0).numpy()
             im = Image.fromarray((image_cpu * 255).astype("uint8"))
