@@ -25,6 +25,7 @@ import math
 import torch.nn.functional as F
 from gsplat.rendering import rasterization
 import json
+import time
 
 
 def knn(x, K=4):
@@ -334,6 +335,7 @@ class BetaModel:
     def save_png(self, path):
         path = os.path.join(path, "png")
         mkdir_p(path)
+        start_time = time.time()
         opacities = self.get_opacity
         N = opacities.numel()
         n_sidelen = int(N**0.5)
@@ -374,6 +376,8 @@ class BetaModel:
 
         with open(os.path.join(path, "meta.json"), "w") as f:
             json.dump(meta, f)
+        end_time = time.time()
+        print(f"Compression time: {end_time - start_time:.2f} seconds")
 
     def load_ply(self, path):
         plydata = PlyData.read(path)
