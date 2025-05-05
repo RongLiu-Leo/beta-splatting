@@ -69,7 +69,11 @@ def training(args):
 
     # Initialize iteration and progress_bar for logging
     iteration = first_iter + 1
-
+    if args.cap_max < beta_model._xyz.shape[0]:
+        print(
+            f"Warning: cap_max ({args.cap_max}) is smaller than the number of points initialized ({beta_model._xyz.shape[0]}). Resetting cap_max to the number of points initialized."
+        )
+        args.cap_max = beta_model._xyz.shape[0]
     if not args.eval:
         progress_bar = tqdm(
             range(first_iter, args.iterations), desc="Training progress"
