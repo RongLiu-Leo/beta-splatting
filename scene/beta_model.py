@@ -829,11 +829,16 @@ class BetaModel:
         }
 
     @torch.no_grad()
-    def view(self, camera_state, img_wh, render_mode="RGB", mask=None):
+    def view(self, camera_state, render_tab_state, render_mode="RGB", mask=None):
         """Callable function for the viewer."""
-        W, H = img_wh
+        if render_tab_state.preview_render:
+            W = render_tab_state.render_width
+            H = render_tab_state.render_height
+        else:
+            W = render_tab_state.viewer_width
+            H = render_tab_state.viewer_height
         c2w = camera_state.c2w
-        K = camera_state.get_K(img_wh)
+        K = camera_state.get_K((W, H))
         c2w = torch.from_numpy(c2w).float().to("cuda")
         K = torch.from_numpy(K).float().to("cuda")
 

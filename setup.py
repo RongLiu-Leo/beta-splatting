@@ -8,7 +8,7 @@ install_requires = [
     "pycolmap @ git+https://github.com/rmbrualla/pycolmap@cc7ea4b7301720ac29287dbe450952511b32125e",
     "plyfile",
     "viser",
-    "nerfview @ git+https://github.com/hangg7/nerfview.git",
+    "nerfview @ git+https://github.com/RongLiu-Leo/nerfview.git",
     "imageio[ffmpeg]",
     "numpy<2.0.0",
     "scikit-learn",
@@ -24,10 +24,13 @@ install_requires = [
     "pandas",
     "tabulate",
     "fused-ssim @ git+https://github.com/rahul-goel/fused-ssim@1272e21a282342e89537159e4bad508b19b34157",
+    "plas @ git+https://github.com/fraunhoferhhi/PLAS.git",
 ]
+
 
 class BuildSubmodule(Command):
     """Custom command to install the submodule located in the 'submodule' folder."""
+
     description = "Install the submodule package from the 'submodule' folder."
     user_options = []  # No options needed for this command
 
@@ -42,17 +45,20 @@ class BuildSubmodule(Command):
         # Use pip to install the submodule; adjust the arguments as needed.
         subprocess.check_call(["pip", "install", "."], cwd=submodule_path)
 
+
 class CustomInstall(install):
     """Custom install command that installs the submodule before installing the main project."""
+
     def run(self):
         # First, install the submodule
         self.run_command("build_submodule")
         # Then proceed with the standard installation of the main project
         install.run(self)
 
+
 setup(
-    name="beta_splatting",  
-    version="0.1.0",      
+    name="beta_splatting",
+    version="0.1.0",
     packages=find_packages(),
     install_requires=install_requires,
     cmdclass={
@@ -61,5 +67,5 @@ setup(
     },
     description="Python package for differentiable rasterization of deformable beta splatting",
     keywords="beta, splatting, cuda",
-    url="https://github.com/RongLiu-Leo/beta-splatting",  
+    url="https://github.com/RongLiu-Leo/beta-splatting",
 )
