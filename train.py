@@ -201,6 +201,12 @@ def training(args):
         ) as f:
             json.dump(result, f, indent=True)
 
+    if args.compress:
+        print("Compressing model...")
+        beta_model.save_png(
+            os.path.join(scene.model_path, "point_cloud/iteration_best")
+        )
+
     if not args.disable_viewer:
         print("Viewer running... Ctrl+C to exit.")
         time.sleep(1000000)
@@ -225,6 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default=None)
+    parser.add_argument("--compress", type=bool, default=True)
     args = parser.parse_args(sys.argv[1:])
 
     args.save_iterations.append(args.iterations)
