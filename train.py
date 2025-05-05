@@ -25,7 +25,7 @@ from scene.beta_model import build_scaling_rotation
 import viser
 from scene.beta_viewer import BetaViewer
 import time
-
+import json
 
 def training(args):
     first_iter = 0
@@ -188,7 +188,13 @@ def training(args):
 
     if args.eval:
         print("\nEvaluating Best Model Performance\n")
-        scene = Scene(args, beta_model, "best").eval()
+        scene = Scene(args, beta_model, "best")
+        result = scene.eval()
+        with open(
+            os.path.join(scene.model_path, "point_cloud/iteration_best/metrics.json"),
+            "w",
+        ) as f:
+            json.dump(result, f, indent=True)
 
     if not args.disable_viewer:
         print("Viewer running... Ctrl+C to exit.")
