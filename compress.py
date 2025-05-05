@@ -28,42 +28,23 @@ import time
 import torch.nn.functional as F
 
 
-def training(args):
-    beta_model = BetaModel(args.sh_degree, args.sb_number)
-    bg_color = [1, 1, 1] if args.white_background else [0, 0, 0]
-    beta_model.background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
-    scene = Scene(args, beta_model)
-    beta_model.load_ply(os.path.join(
-                    args.model_path,
-                    "point_cloud",
-                    "iteration_best",
-                    "point_cloud.ply",
-                ))
-    if args.eval:
-        scene.eval()
-    
-    beta_model.save_png(os.path.join(
-            args.model_path, "point_cloud/iteration_compress"
-        ))
-
-    beta_model.load_png(os.path.join(
-                    args.model_path,
-                    "point_cloud",
-                    "iteration_compress",
-                    "png",
-                ))
-
-    if args.eval:
-        print("\nEvaluating Compress Model Performance\n")
-        scene.eval()
+def compressing(args):
+    beta_model = BetaModel()
+    beta_model.load_ply(args.ply)
+    start_time = time.time()
+    beta_model.save_png(os.path.dirname(args.ply))
+    end_time = time.time()
+    print(f"Compression time: {end_time - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Compressing script parameters")
-    ModelParams(parser), OptimizationParams(parser), ViewerParams(parser)
+    parser.add_argument(
+        "--ply", type=str, default=None, help="path to the .ply file"
+    )
     args = parser.parse_args(sys.argv[1:])
 
-    print("Compressing " + args.model_path)
+    print("Compressing " + args.ply)
 
-    training(args)
+    compressing(args)
