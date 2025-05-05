@@ -1,31 +1,10 @@
-#
-# Copyright (C) 2023, Inria
-# GRAPHDECO research group, https://team.inria.fr/graphdeco
-# All rights reserved.
-#
-# This software is free for non-commercial, research and evaluation use
-# under the terms of the LICENSE.md file.
-#
-# For inquiries contact  george.drettakis@inria.fr
-#
-
 import os
-import torch
-from random import randint
 
-from utils.loss_utils import l1_loss
-from fused_ssim import fused_ssim
 import sys
-from scene import Scene, BetaModel
-from utils.general_utils import safe_state
-from tqdm import tqdm
-from argparse import ArgumentParser, Namespace
-from arguments import ModelParams, ViewerParams, OptimizationParams
-from scene.beta_model import build_scaling_rotation
-import viser
-import nerfview
+from scene import BetaModel
+from argparse import ArgumentParser
+
 import time
-import torch.nn.functional as F
 
 
 def compressing(args):
