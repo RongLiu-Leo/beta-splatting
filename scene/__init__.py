@@ -166,8 +166,4 @@ class Scene:
             "LPIPS": lpips_test.item(),
         }
         print(result)
-        with open(
-            os.path.join(self.model_path, "point_cloud/iteration_best/metrics.json"),
-            "w",
-        ) as f:
-            json.dump(result, f, indent=True)
+        return result
