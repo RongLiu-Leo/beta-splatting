@@ -27,6 +27,7 @@ from scene.beta_viewer import BetaViewer
 import time
 import json
 
+
 def training(args):
     first_iter = 0
     prepare_output_and_logger(args)

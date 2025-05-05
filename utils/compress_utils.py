@@ -6,17 +6,20 @@ from typing import Dict, Any
 from torch import Tensor
 from plas import sort_with_plas
 
-def compress_png(compress_dir: str, param_name: str, params: Tensor, n_sidelen: int, bit: int = 8) -> Dict[str, Any]:
+
+def compress_png(
+    compress_dir: str, param_name: str, params: Tensor, n_sidelen: int, bit: int = 8
+) -> Dict[str, Any]:
     """
     Compress parameters using PNG with specified bit quantization.
-    
+
     Args:
         compress_dir (str): Directory to save the compressed image(s).
         param_name (str): Base filename for the parameter images.
         params (Tensor): The tensor to compress.
         n_sidelen (int): The side length for reshaping the tensor.
         bit (int): Bit depth for quantization (8, 16, or 32).
-        
+
     Returns:
         Dict[str, Any]: Metadata including original shape, data type, and normalization parameters.
     """
@@ -58,7 +61,7 @@ def compress_png(compress_dir: str, param_name: str, params: Tensor, n_sidelen: 
             imageio.imwrite(os.path.join(compress_dir, f"{param_name}_{i}.png"), chunk)
     else:
         raise ValueError("Unsupported bit depth. Please use 8, 16, or 32.")
-    
+
     meta = {
         "shape": list(params.shape),
         "dtype": str(params.dtype).split(".")[1],
@@ -68,15 +71,16 @@ def compress_png(compress_dir: str, param_name: str, params: Tensor, n_sidelen: 
     }
     return meta
 
+
 def decompress_png(compress_dir: str, param_name: str, meta: dict) -> np.ndarray:
     """
     Decompress parameters from PNG(s) with specified bit quantization.
-    
+
     Args:
         compress_dir (str): Directory where the compressed image(s) are stored.
         param_name (str): Base filename for the parameter images.
         meta (dict): Metadata produced during compression.
-        
+
     Returns:
         np.ndarray: The decompressed parameters with original shape and data type.
     """
@@ -84,7 +88,9 @@ def decompress_png(compress_dir: str, param_name: str, meta: dict) -> np.ndarray
     max_val = 2**bit - 1
     if bit == 8:
         # Read single 8-bit image
-        img = imageio.imread(os.path.join(compress_dir, f"{param_name}.png")).astype(np.float32)
+        img = imageio.imread(os.path.join(compress_dir, f"{param_name}.png")).astype(
+            np.float32
+        )
     elif bit in (16, 32):
         if bit == 16:
             num_chunks = 2
@@ -92,17 +98,21 @@ def decompress_png(compress_dir: str, param_name: str, meta: dict) -> np.ndarray
             num_chunks = 4
 
         # Initialize the image with zeros; determine shape from one of the chunks
-        first_chunk = imageio.imread(os.path.join(compress_dir, f"{param_name}_0.png")).astype(np.uint32)
+        first_chunk = imageio.imread(
+            os.path.join(compress_dir, f"{param_name}_0.png")
+        ).astype(np.uint32)
         img = np.zeros_like(first_chunk, dtype=np.uint32)
-        
+
         # Combine each 8-bit chunk into a single integer value
         for i in range(num_chunks):
-            chunk = imageio.imread(os.path.join(compress_dir, f"{param_name}_{i}.png")).astype(np.uint32)
-            img |= (chunk << (8 * i))
+            chunk = imageio.imread(
+                os.path.join(compress_dir, f"{param_name}_{i}.png")
+            ).astype(np.uint32)
+            img |= chunk << (8 * i)
         img = img.astype(np.float32)
     else:
         raise ValueError("Unsupported bit depth. Please use 8, 16, or 32.")
-    
+
     # Normalize back to [0, 1]
     img_norm = img / max_val
 
@@ -116,18 +126,25 @@ def decompress_png(compress_dir: str, param_name: str, meta: dict) -> np.ndarray
     params = params.astype(meta["dtype"])
     return params
 
-def sort_param_dict(param_dict: Dict[str, Tensor], n_sidelen: int, verbose: bool = False) -> Dict[str, Tensor]:
+
+def sort_param_dict(
+    param_dict: Dict[str, Tensor], n_sidelen: int, verbose: bool = False
+) -> Dict[str, Tensor]:
 
     n_gs = n_sidelen**2
 
-    params = torch.cat([param_dict[k].reshape(n_gs, -1)
-                        for k in param_dict.keys() if param_dict[k] is not None], dim=-1)
-    
-    shuffled_indices = torch.randperm(
-        params.shape[0], device=params.device
+    params = torch.cat(
+        [
+            param_dict[k].reshape(n_gs, -1)
+            for k in param_dict.keys()
+            if param_dict[k] is not None
+        ],
+        dim=-1,
     )
+
+    shuffled_indices = torch.randperm(params.shape[0], device=params.device)
     params = params[shuffled_indices]
-    
+
     grid = params.reshape((n_sidelen, n_sidelen, -1))
     _, sorted_indices = sort_with_plas(
         grid.permute(2, 0, 1), improvement_break=1e-4, verbose=verbose

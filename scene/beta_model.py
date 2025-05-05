@@ -19,12 +19,13 @@ from plyfile import PlyData, PlyElement
 from utils.sh_utils import RGB2SH
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
-from utils.compress_utils  import compress_png, decompress_png, sort_param_dict
+from utils.compress_utils import compress_png, decompress_png, sort_param_dict
 from sklearn.neighbors import NearestNeighbors
 import math
 import torch.nn.functional as F
 from gsplat.rendering import rasterization
 import json
+
 
 def knn(x, K=4):
     x_np = x.cpu().numpy()
@@ -218,7 +219,6 @@ class BetaModel:
         self._opacity = self._opacity[live_mask]
         self._beta = self._beta[live_mask]
 
-
     def training_setup(self, training_args):
         l = [
             {
@@ -340,9 +340,11 @@ class BetaModel:
         n_crop = N - n_sidelen**2
         if n_crop:
             index = torch.argsort(opacities.squeeze(), descending=True)
-            mask = torch.zeros(N, dtype=torch.bool, device=opacities.device).scatter_(0, index[:-n_crop], True)
+            mask = torch.zeros(N, dtype=torch.bool, device=opacities.device).scatter_(
+                0, index[:-n_crop], True
+            )
             self.prune(mask.squeeze())
-        meta={}
+        meta = {}
         param_dict = {
             "xyz": self._xyz,
             "sh0": self._sh0,
@@ -358,9 +360,13 @@ class BetaModel:
             if param_dict[k] is not None:
                 if k == "sb_params":
                     for i in range(self.sb_number):
-                        meta[f"sb_{i}_color"] = compress_png(path, f"sb_{i}_color", param_dict[k][:, i, :3], n_sidelen)
+                        meta[f"sb_{i}_color"] = compress_png(
+                            path, f"sb_{i}_color", param_dict[k][:, i, :3], n_sidelen
+                        )
 
-                        meta[f"sb_{i}_lobe"] = compress_png(path, f"sb_{i}_lobe", param_dict[k][:, i, 3:], n_sidelen)
+                        meta[f"sb_{i}_lobe"] = compress_png(
+                            path, f"sb_{i}_lobe", param_dict[k][:, i, 3:], n_sidelen
+                        )
                 elif k == "xyz":
                     meta[k] = compress_png(path, k, param_dict[k], n_sidelen, bit=32)
                 else:
@@ -469,14 +475,17 @@ class BetaModel:
 
         self.active_sh_degree = self.max_sh_degree
 
-
     def load_png(self, path):
         with open(os.path.join(path, "meta.json"), "r") as f:
             meta = json.load(f)
         xyz = decompress_png(path, "xyz", meta["xyz"])
         sh0 = decompress_png(path, "sh0", meta["sh0"])
-        
-        shN = decompress_png(path, "shN", meta["shN"]) if self.max_sh_degree else np.zeros((xyz.shape[0], (self.max_sh_degree + 1) ** 2 - 1, 3))
+
+        shN = (
+            decompress_png(path, "shN", meta["shN"])
+            if self.max_sh_degree
+            else np.zeros((xyz.shape[0], (self.max_sh_degree + 1) ** 2 - 1, 3))
+        )
         opacity = decompress_png(path, "opacity", meta["opacity"])
         beta = decompress_png(path, "beta", meta["beta"])
         scaling = decompress_png(path, "scaling", meta["scaling"])
@@ -487,13 +496,14 @@ class BetaModel:
                 color = decompress_png(path, f"sb_{i}_color", meta[f"sb_{i}_color"])
                 direction = decompress_png(path, f"sb_{i}_lobe", meta[f"sb_{i}_lobe"])
                 # Concatenate along the feature dimension (expecting 3 channels each)
-                sb = np.concatenate([color, direction], axis=1)  # shape: (num_points, 6)
+                sb = np.concatenate(
+                    [color, direction], axis=1
+                )  # shape: (num_points, 6)
                 sb_params_list.append(sb)
             # Stack to get shape (num_points, 6, sb_number)
             sb_params = np.stack(sb_params_list, axis=2)
         else:
             sb_params = np.zeros((xyz.shape[0], 6, self.sb_number))
-
 
         self._xyz = nn.Parameter(
             torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True)
@@ -518,7 +528,9 @@ class BetaModel:
             torch.tensor(scaling, dtype=torch.float, device="cuda").requires_grad_(True)
         )
         self._rotation = nn.Parameter(
-            torch.tensor(rotation, dtype=torch.float, device="cuda").requires_grad_(True)
+            torch.tensor(rotation, dtype=torch.float, device="cuda").requires_grad_(
+                True
+            )
         )
         self._sb_params = nn.Parameter(
             torch.tensor(sb_params, dtype=torch.float, device="cuda")
@@ -526,7 +538,7 @@ class BetaModel:
             .contiguous()
             .requires_grad_(True)
         )
-    
+
     def replace_tensor_to_optimizer(self, tensor, name):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
