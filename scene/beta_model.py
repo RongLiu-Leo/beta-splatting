@@ -62,7 +62,7 @@ class BetaModel:
         self.sb_params_activation = sb_params_activation
         self.beta_activation = beta_activation
 
-    def __init__(self, sh_degree: int, sb_number: int):
+    def __init__(self, sh_degree: int = 0, sb_number: int = 2):
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree
         self.sb_number = sb_number
