@@ -40,10 +40,10 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Viewing script parameters")
     ModelParams(parser), ViewerParams(parser)
     parser.add_argument(
-        "--ply", type=str, required=True, default=None, help="path to the .ply file"
+        "--ply", type=str, default=None, help="path to the .ply file"
     )
     parser.add_argument(
-        "--png", type=str, required=True, default=None, help="path to the png folder"
+        "--png", type=str, default=None, help="path to the png folder"
     )
 
     args = parser.parse_args()
