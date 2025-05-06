@@ -96,7 +96,7 @@ if args.mipnerf360:
             scene_path, "point_cloud/iteration_best/metrics.json"
         )
         with open(results_file, "r") as f:
-            scene_metrics = json.load(f)["ours_best"]
+            scene_metrics = json.load(f)
         scene_metrics["Scene"] = scene
         mip_metrics.append(scene_metrics)
 
@@ -120,7 +120,7 @@ if args.tanksandtemples:
             scene_path, "point_cloud/iteration_best/metrics.json"
         )
         with open(results_file, "r") as f:
-            scene_metrics = json.load(f)["ours_best"]
+            scene_metrics = json.load(f)
         scene_metrics["Scene"] = scene
         tat_metrics.append(scene_metrics)
 
@@ -143,7 +143,7 @@ if args.deepblending:
             scene_path, "point_cloud/iteration_best/metrics.json"
         )
         with open(results_file, "r") as f:
-            scene_metrics = json.load(f)["ours_best"]
+            scene_metrics = json.load(f)
         scene_metrics["Scene"] = scene
         db_metrics.append(scene_metrics)
 
@@ -166,7 +166,7 @@ if args.nerfsynthetic:
             scene_path, "point_cloud/iteration_best/metrics.json"
         )
         with open(results_file, "r") as f:
-            scene_metrics = json.load(f)["ours_best"]
+            scene_metrics = json.load(f)
         scene_metrics["Scene"] = scene
         nf_metrics.append(scene_metrics)
 
