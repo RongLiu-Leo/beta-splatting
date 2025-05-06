@@ -193,7 +193,9 @@ def training(args):
 
     if args.eval:
         print("\nEvaluating Best Model Performance\n")
-        scene = Scene(args, beta_model, "best")
+        beta_model.load_ply(
+            os.path.join(scene.model_path, "point_cloud/iteration_best/point_cloud.ply")
+        )
         result = scene.eval()
         with open(
             os.path.join(scene.model_path, "point_cloud/iteration_best/metrics.json"),
@@ -202,10 +204,17 @@ def training(args):
             json.dump(result, f, indent=True)
 
     if args.compress:
-        print("Compressing model...")
-        beta_model.save_png(
-            os.path.join(scene.model_path, "point_cloud/iteration_best")
-        )
+        if args.eval:
+            print("Compressing model at iteration_best...")
+            beta_model.save_png(
+                os.path.join(scene.model_path, "point_cloud/iteration_best")
+            )
+        else:
+            iteration = args.save_iterations[-1]
+            print(f"Compressing model at iteration {iteration}...")
+            beta_model.save_png(
+                os.path.join(scene.model_path, f"point_cloud/iteration_{iteration}")
+            )
 
     if not args.disable_viewer:
         print("Viewer running... Ctrl+C to exit.")
