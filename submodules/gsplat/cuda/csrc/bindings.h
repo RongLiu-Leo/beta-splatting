@@ -327,14 +327,6 @@ fully_fused_projection_packed_bwd_tensor(
     const bool sparse_grad
 );
 
-std::tuple<torch::Tensor, torch::Tensor> compute_relocation_tensor(
-    torch::Tensor &opacities,
-    torch::Tensor &scales,
-    torch::Tensor &ratios,
-    torch::Tensor &binoms,
-    const int n_max
-);
-
 } // namespace gsplat
 
 #endif // GSPLAT_CUDA_BINDINGS_H
