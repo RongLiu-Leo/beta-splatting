@@ -54,15 +54,13 @@ This project is built on top of the [Original 3DGS](https://github.com/graphdeco
 ```shell
 python train.py -s <path to COLMAP or NeRF Synthetic dataset>
 ```
-For example,
-```shell
-python train.py -s lego --eval
-```
 <details>
 <summary><span style="font-weight: bold;">Important Command Line Arguments for train.py</span></summary>
 
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
+  #### --cap_max
+  Number of primitives that the final model produces.
   #### --model_path / -m 
   Path where the trained model should be stored.
   #### --resolution / -r
@@ -79,9 +77,25 @@ python train.py -s lego --eval
 </details>
 <br>
 
+For example, simply run
+```shell
+python train.py -s lego --cap_max 300000 --eval
+```
+You should be able to visualize your first Beta Model like this
+
+![Lego Demo](assets/lego.png)
+
+### Compress a Trained Beta Model
+```shell
+python compress.py --ply <path to a trained Beta Model ply file>
+# It will produce a folder named "png" for a Beta Model, saving 5x~6x storage compared to ply file
+```
+
 ### Visualize a Trained Beta Model
 ```shell
-python view.py --ply <path to a trained Beta Model>
+python view.py --ply <path to a trained Beta Model ply file>
+# or
+python view.py --png <path to a compressed Beta Model png folder>
 ```
 <details>
 <summary><span style="font-weight: bold;">Important Command Line Arguments for view.py</span></summary>
@@ -94,19 +108,17 @@ python view.py --ply <path to a trained Beta Model>
 </details>
 <br>
 
-### Render a Trained Beta Model
+### Evaluate a Trained Beta Model
 ```shell
-python render.py -s <path to COLMAP or NeRF Synthetic dataset> -m <path to trained model directory> 
+python eval.py -s <path to COLMAP or NeRF Synthetic dataset> -m <path to trained model directory> 
 ```
 <details>
-<summary><span style="font-weight: bold;">Important Command Line Arguments for render.py</span></summary>
+<summary><span style="font-weight: bold;">Important Command Line Arguments for eval.py</span></summary>
 
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
   #### --model_path / -m 
   Path to the trained model directory where the trained model should be stored (```output/<random>``` by default).
-  #### --render_mode {RGB,Diffuse,Specular}
-  Specifies which mode to render (```RGB``` by default).
   #### --iteration
   Loading trained iteration for rendering. "Best" by default.
 
