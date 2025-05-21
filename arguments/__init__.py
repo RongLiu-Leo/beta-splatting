@@ -76,7 +76,7 @@ class ViewerParams(ParamGroup):
     def __init__(self, parser):
         self.port = 8080
         self.disable_viewer = False
-        super().__init__(parser, "Pipeline Parameters")
+        super().__init__(parser, "Viewer Parameters")
 
 
 class OptimizationParams(ParamGroup):

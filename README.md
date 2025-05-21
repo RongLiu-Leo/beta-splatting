@@ -2,6 +2,8 @@
 
 [![button](https://img.shields.io/badge/Project-Website-blue.svg?style=social&logo=Google-Chrome)](https://rongliu-leo.github.io/beta-splatting/)
 [![button](https://img.shields.io/badge/Paper-arXiv-red.svg?style=social&logo=arXiv)](https://arxiv.org/abs/2501.18630)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/deformable-beta-splatting/novel-view-synthesis-on-nerf)](https://paperswithcode.com/sota/novel-view-synthesis-on-nerf?p=deformable-beta-splatting)
+
 
 <span class="author-block">
   <a href="https://rongliu-leo.github.io/">Rong Liu*</a>,
@@ -23,11 +25,12 @@
 
 ![Teaser image](assets/teaser.png)
 
-Abstract: *3D Gaussian Splatting (3DGS) has advanced radiance field reconstruction by enabling real-time rendering. However, its reliance on Gaussian kernels for geometry and low-order Spherical Harmonics (SH) for color encoding limits its ability to capture complex geometries and diverse colors. We introduce Deformable Beta Splatting (DBS), a deformable and compact approach that enhances both geometry and color representation. DBS replaces Gaussian kernels with deformable Beta Kernels, which offer bounded support and adaptive frequency control to capture fine geometric details with higher fidelity while achieving better memory efficiency. In addition, we extended the Beta Kernel to color encoding, which facilitates improved representation of diffuse and specular components, yielding superior results compared to SH-based methods. Furthermore, Unlike prior densification techniques that depend on Gaussian properties, we mathematically prove that adjusting regularized opacity alone ensures distribution-preserved Markov chain Monte Carlo (MCMC), independent of the splatting kernel type. Experimental results demonstrate that DBS achieves state-of-the-art visual quality while utilizing only 45% of the parameters and rendering 1.5x faster than 3DGS-based methods. Notably, for the first time, splatting-based methods outperform state-of-the-art Neural Radiance Fields, highlighting the superior performance and efficiency of DBS for real-time radiance field rendering.*
+Abstract: *3D Gaussian Splatting (3DGS) has advanced radiance field reconstruction by enabling real-time rendering. However, its reliance on Gaussian kernels for geometry and low-order Spherical Harmonics (SH) for color encoding limits its ability to capture complex geometries and diverse colors.
+We introduce Deformable Beta Splatting (DBS), a deformable and compact approach that enhances both geometry and color representation. DBS replaces Gaussian kernels with deformable Beta Kernels, which offer bounded support and adaptive frequency control to capture fine geometric details with higher fidelity while achieving better memory efficiency. In addition, we extended the Beta Kernel to color encoding, which facilitates improved representation of diffuse and specular components, yielding superior results compared to SH-based methods. Furthermore, Unlike prior densification techniques that depend on Gaussian properties, we mathematically prove that adjusting regularized opacity alone ensures distribution-preserved Markov chain Monte Carlo (MCMC), independent of the splatting kernel type. Experimental results demonstrate that DBS achieves state-of-the-art visual quality while utilizing only 45\% of the parameters and rendering 1.5x faster than 3DGS-MCMC, highlighting the superior performance of DBS for real-time radiance field rendering.*
 
 ## Quickstart
 
-This project is built on top of the [Original 3DGS](https://github.com/graphdeco-inria/gaussian-splatting), [3DGS-MCMC](https://github.com/ubc-vision/3dgs-mcmc) and [gsplat](https://github.com/nerfstudio-project/gsplat) code bases.
+This project is built on top of the [Original 3DGS](https://github.com/graphdeco-inria/gaussian-splatting), [3DGS-MCMC](https://github.com/ubc-vision/3dgs-mcmc) and [gsplat](https://github.com/nerfstudio-project/gsplat) code bases. The authors are grateful to the original authors for their open-source codebase contributions.
 
 ### Installation Steps
 
@@ -54,15 +57,13 @@ This project is built on top of the [Original 3DGS](https://github.com/graphdeco
 ```shell
 python train.py -s <path to COLMAP or NeRF Synthetic dataset>
 ```
-For example,
-```shell
-python train.py -s lego --eval
-```
 <details>
 <summary><span style="font-weight: bold;">Important Command Line Arguments for train.py</span></summary>
 
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
+  #### --cap_max
+  Number of primitives that the final model produces.
   #### --model_path / -m 
   Path where the trained model should be stored.
   #### --resolution / -r
@@ -79,9 +80,25 @@ python train.py -s lego --eval
 </details>
 <br>
 
+For example, simply run
+```shell
+python train.py -s lego --cap_max 300000 --eval
+```
+You should be able to visualize your first Beta Model like this
+
+![Lego Demo](assets/lego.png)
+
+### Compress a Trained Beta Model
+```shell
+python compress.py --ply <path to a trained Beta Model ply file>
+# It will produce a folder named "png" for a Beta Model, saving 5x~6x storage compared to a ply file
+```
+
 ### Visualize a Trained Beta Model
 ```shell
-python view.py --ply <path to a trained Beta Model>
+python view.py --ply <path to a trained Beta Model ply file>
+# or
+python view.py --png <path to a compressed Beta Model png folder>
 ```
 <details>
 <summary><span style="font-weight: bold;">Important Command Line Arguments for view.py</span></summary>
@@ -94,19 +111,17 @@ python view.py --ply <path to a trained Beta Model>
 </details>
 <br>
 
-### Render a Trained Beta Model
+### Evaluate a Trained Beta Model
 ```shell
-python render.py -s <path to COLMAP or NeRF Synthetic dataset> -m <path to trained model directory> 
+python eval.py -s <path to COLMAP or NeRF Synthetic dataset> -m <path to trained model directory> 
 ```
 <details>
-<summary><span style="font-weight: bold;">Important Command Line Arguments for render.py</span></summary>
+<summary><span style="font-weight: bold;">Important Command Line Arguments for eval.py</span></summary>
 
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
   #### --model_path / -m 
   Path to the trained model directory where the trained model should be stored (```output/<random>``` by default).
-  #### --render_mode {RGB,Diffuse,Specular}
-  Specifies which mode to render (```RGB``` by default).
   #### --iteration
   Loading trained iteration for rendering. "Best" by default.
 
@@ -134,6 +149,17 @@ python benchmark.py -<dataset> <path to dataset>
 
 </details>
 <br>
+
+| Method                      | PSNR ↑ | SSIM ↑ | LPIPS ↓ | Num (M) ↓ | Size (MB) ↓ | Compression Time (s) ↓ | Compression Ratio ↑ |
+|-----------------------------|--------|--------|---------|-----------|-------------|------------------------|---------------------|
+| 3DGS                        | 27.20  | 0.815  | 0.214   | 3.35      | 752.74      | –                      | 1                   |
+| DBS-full                    | 28.75  | 0.845  | 0.179   | 3.11      | 356.04      | –                      | 2.11                |
+| DBS-full (compressed)       | 28.60  | 0.840  | 0.182   | 3.11      | 63.48       | 41.70                  | 11.86               |
+| DBS-1M                      | 28.42  | 0.831  | 0.205   | 1.00      | 114.44      | –                      | 6.58                |
+| DBS-1M (compressed)         | 28.32  | 0.828  | 0.207   | 1.00      | 22.32       | 14.28                  | 33.72               |
+| DBS-490K                    | 28.03  | 0.816  | 0.232   | 0.49      | 56.08       | –                      | 13.42               |
+| DBS-490K (compressed)       | 27.80  | 0.806  | 0.237   | 0.49      | 11.37       | 9.15                   | 66.20               |
+
 
 ### Processing your own Scenes
 

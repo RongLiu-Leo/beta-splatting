@@ -1,6 +1,5 @@
 import warnings
 
-from .compression import PngCompression
 from .cuda._torch_impl import accumulate
 from .cuda._wrapper import (
     fully_fused_projection,
@@ -17,14 +16,9 @@ from .cuda._wrapper import (
 from .rendering import (
     rasterization,
 )
-from .strategy import DefaultStrategy, MCMCStrategy, Strategy
 from .version import __version__
 
 all = [
-    "PngCompression",
-    "DefaultStrategy",
-    "MCMCStrategy",
-    "Strategy",
     "rasterization",
     "rasterization_inria_wrapper",
     "spherical_harmonics",
