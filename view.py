@@ -20,15 +20,8 @@ def viewing(args):
     server = viser.ViserServer(port=args.port, verbose=False)
     viewer = BetaViewer(
         server=server,
-        render_fn=lambda camera_state, render_tab_state: (
-            lambda mask: beta_model.view(
-                camera_state, render_tab_state, viewer.gui_dropdown.value, mask
-            )
-        )(
-            torch.logical_and(
-                beta_model._beta >= viewer.gui_multi_slider.value[0],
-                beta_model._beta <= viewer.gui_multi_slider.value[1],
-            ).squeeze()
+        render_fn=lambda camera_state, render_tab_state: beta_model.view(
+            camera_state, render_tab_state
         ),
         mode="rendering",
     )

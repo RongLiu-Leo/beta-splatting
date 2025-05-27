@@ -369,7 +369,7 @@ call_kernel_with_dim(
     if (n_isects) {
         const uint32_t shared_mem =
             tile_size * tile_size *
-            (sizeof(int32_t) + sizeof(vec3<float>) + sizeof(vec3<float>) +
+            (sizeof(int32_t) + sizeof(vec4<float>) + sizeof(vec3<float>) +
              sizeof(float) * COLOR_DIM);
         at::cuda::CUDAStream stream = at::cuda::getCurrentCUDAStream();
 

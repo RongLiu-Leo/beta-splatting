@@ -252,7 +252,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> call_kernel_with_dim(
     at::cuda::CUDAStream stream = at::cuda::getCurrentCUDAStream();
     const uint32_t shared_mem =
         tile_size * tile_size *
-        (sizeof(int32_t) + sizeof(vec3<float>) + sizeof(vec3<float>));
+        (sizeof(int32_t) + sizeof(vec4<float>) + sizeof(vec3<float>));
 
     // TODO: an optimization can be done by passing the actual number of
     // channels into the kernel functions and avoid necessary global memory

@@ -28,7 +28,7 @@ def compress_png(
         raise ValueError(f"Parameter tensor {param_name} is empty. Cannot compress.")
 
     # Reshape tensor into a grid and compute min/max for normalization
-    grid = params.reshape((n_sidelen, n_sidelen, -1)).squeeze()
+    grid = params.view((n_sidelen, n_sidelen, -1)).squeeze()
     mins = torch.amin(grid, dim=(0, 1))
     maxs = torch.amax(grid, dim=(0, 1))
     grid_norm = (grid - mins) / (maxs - mins)
@@ -131,11 +131,11 @@ def sort_param_dict(
     param_dict: Dict[str, Tensor], n_sidelen: int, verbose: bool = False
 ) -> Dict[str, Tensor]:
 
-    n_gs = n_sidelen**2
-
+    n_primitive = n_sidelen**2
+    params = param_dict
     params = torch.cat(
         [
-            param_dict[k].reshape(n_gs, -1)
+            param_dict[k].view(n_primitive, -1)
             for k in param_dict.keys()
             if param_dict[k] is not None
         ],
@@ -145,7 +145,7 @@ def sort_param_dict(
     shuffled_indices = torch.randperm(params.shape[0], device=params.device)
     params = params[shuffled_indices]
 
-    grid = params.reshape((n_sidelen, n_sidelen, -1))
+    grid = params.view((n_sidelen, n_sidelen, -1))
     _, sorted_indices = sort_with_plas(
         grid.permute(2, 0, 1), improvement_break=1e-4, verbose=verbose
     )

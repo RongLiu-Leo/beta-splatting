@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from gsplat.rendering import rasterization
 import json
 import time
+from .beta_viewer import BetaRenderTabState
 
 
 def knn(x, K=4):
@@ -845,8 +846,9 @@ class BetaModel:
         }
 
     @torch.no_grad()
-    def view(self, camera_state, render_tab_state, render_mode="RGB", mask=None):
+    def view(self, camera_state, render_tab_state):
         """Callable function for the viewer."""
+        assert isinstance(render_tab_state, BetaRenderTabState)
         if render_tab_state.preview_render:
             W = render_tab_state.render_width
             H = render_tab_state.render_height
@@ -858,10 +860,16 @@ class BetaModel:
         c2w = torch.from_numpy(c2w).float().to("cuda")
         K = torch.from_numpy(K).float().to("cuda")
 
-        if mask == None:
-            mask = torch.ones_like(self.get_beta.squeeze()).bool()
+        render_mode = render_tab_state.render_mode
+        mask = torch.logical_and(
+            self._beta >= render_tab_state.b_range[0],
+            self._beta <= render_tab_state.b_range[1],
+        ).squeeze()
+        self.background = (
+            torch.tensor(render_tab_state.backgrounds, device="cuda") / 255.0
+        )
 
-        render_colors = rasterization(
+        render_colors, alphas, meta = rasterization(
             means=self.get_xyz[mask],
             quats=self.get_rotation[mask],
             scales=self.get_scaling[mask],
@@ -873,13 +881,21 @@ class BetaModel:
             width=W,
             height=H,
             backgrounds=self.background.unsqueeze(0),
-            render_mode=render_mode,
+            render_mode=render_mode if render_mode != "Alpha" else "RGB",
             covars=None,
             sh_degree=self.active_sh_degree,
             sb_number=self.sb_number,
             sb_params=self.get_sb_params[mask],
             packed=False,
-        )[0]
+            near_plane=render_tab_state.near_plane,
+            far_plane=render_tab_state.far_plane,
+            radius_clip=render_tab_state.radius_clip,
+        )
+        render_tab_state.total_count_number = len(self.get_xyz)
+        render_tab_state.rendered_count_number = (meta["radii"] > 0).sum().item()
+
+        if render_mode == "Alpha":
+            render_colors = alphas
 
         if render_colors.shape[-1] == 1:
             render_colors = apply_depth_colormap(render_colors)
