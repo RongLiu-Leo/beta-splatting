@@ -28,7 +28,7 @@ class BetaViewer(nerfview.Viewer):
             with self.server.gui.add_folder("Render Mode"):
                 self.gui_dropdown = self.server.gui.add_dropdown(
                     "Mode",
-                    ["RGB", "Diffuse", "Specular", "Depth"],
+                    ["RGB", "Diffuse", "Specular", "Depth", "Normal"],
                     initial_value="RGB",
                 )
                 self.gui_dropdown.on_update(self.rerender)
