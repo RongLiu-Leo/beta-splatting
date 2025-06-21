@@ -14,7 +14,6 @@ from utils.general_utils import PILtoTorch
 from utils.graphics_utils import fov2focal
 import torch
 import numpy as np
-import scipy
 import copy
 
 WARNED = False

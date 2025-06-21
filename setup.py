@@ -10,7 +10,7 @@ install_requires = [
     "viser",
     "nerfview @ git+https://github.com/RongLiu-Leo/nerfview.git",
     "imageio[ffmpeg]",
-    "numpy<2.0.0",
+    "numpy",
     "scikit-learn",
     "tqdm",
     "torchmetrics[image]",
