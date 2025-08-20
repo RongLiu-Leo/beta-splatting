@@ -148,7 +148,7 @@ function createThreeWayCompare({
   const isMPD  = (u) => /\.mpd(\?|$)/i.test(u);
   const isAbs  = (u) => /^https?:\/\//i.test(u);
   
-  
+
   function setVideoSource(i, src, restart=true, autoplay=true, onErr=null) {
     const oldV = vids[i];
   
@@ -212,7 +212,6 @@ function createThreeWayCompare({
     const tryLoad = () => {
       const ext = tryExts[k];
       const src = buildSrc(state.scene, kernel, feature, ext);
-      console.log(src)
       // console.log(`[${boxSel}] pane ${i} -> ${src}`);
       setVideoSource(i, src, restart, autoplay, () => {
         if (++k < tryExts.length) tryLoad();
