@@ -57,6 +57,7 @@ const QUERIES_BY_SCENE_B = {
     { value: "waldo",                            label: "waldo" },
   ],
   Ramen: [
+    // TODO: replace with your real ramen queries & filenames
     { value: "chopsticks",    label: "chopsticks" },
     { value: "glass_cup",     label: "glass cup" },
     { value: "half_of_egg",   label: "half of egg" },
@@ -86,6 +87,7 @@ const QUERIES_BY_SCENE_D = {
     { value: "RGB",                              label: "RGB" },
   ],
   Ramen: [
+    // TODO: replace with your real ramen queries & filenames
     { value: "chopsticks",    label: "chopsticks" },
     { value: "glass_cup",     label: "glass cup" },
     { value: "half_of_egg",   label: "half of egg" },
@@ -102,6 +104,7 @@ const QUERIES_BY_SCENE_D = {
 
 // ------------ three-way overlapped compare (scoped per container) ------------
 function createThreeWayCompare({
+  
   boxSel, tabsSel, buildSrc, queriesByScene=null,
   initialScene="Figurines",
   initialPanes=[ // A, B, C defaults
@@ -111,6 +114,11 @@ function createThreeWayCompare({
   ],
   extOrder=['mp4','webm'],
 }) {
+  const isHls = (u) => /\.m3u8(\?|$)/.test(u);
+  const canNativeHls = () => {
+    const v = document.createElement('video');
+    return v.canPlayType('application/vnd.apple.mpegURL') !== '';
+  };
   const box = document.querySelector(boxSel);
   const tabs = document.querySelectorAll(`${tabsSel} .nav-link`);
   if (!box) return;
@@ -120,9 +128,6 @@ function createThreeWayCompare({
   const kernelSelects  = [...box.querySelectorAll('.kernel-select')];
   const featureSelects = [...box.querySelectorAll('.feature-select')];
   const dividers = [...box.querySelectorAll('.divider')]; // use data-divider
-
-  // Make touch drags reliable on mobile
-  dividers.forEach(d => { d.style.touchAction = 'none'; });
 
   const state = {
     scene: initialScene,
@@ -143,42 +148,40 @@ function createThreeWayCompare({
     if (d0) d0.style.left = `calc(${x0}% - 3px)`;
     if (d1) d1.style.left = `calc(${x1}% - 3px)`;
   }
-
-  // ---- Robust source setting (HLS/DASH/native) -----------------------------
-  const isM3U8 = (u) => typeof u === 'string' && /\.m3u8(\?|$)/i.test(u);
-  const isMPD  = (u) => typeof u === 'string' && /\.mpd(\?|$)/i.test(u);
-
+  const isM3U8 = (u) => /\.m3u8(\?|$)/i.test(u);
+  const isMPD  = (u) => /\.mpd(\?|$)/i.test(u);
+  const isAbs  = (u) => /^https?:\/\//i.test(u);
+  
+  
   function setVideoSource(i, src, restart=true, autoplay=true, onErr=null) {
     const oldV = vids[i];
-
-    // Guard: empty src (e.g., missing VIDEO_MAP entry)
-    if (!src) { if (onErr) onErr(); return; }
-
+  
     // clean up previous adaptive players
     if (oldV._hls) { try { oldV._hls.destroy(); } catch(e){} delete oldV._hls; }
     if (oldV._dash){ try { oldV._dash.reset();   } catch(e){} delete oldV._dash; }
-
+  
     const nv = oldV.cloneNode(true);
-    nv.muted = true;
+    nv.muted = true; 
     nv.playsInline = true;
-
+  
     if (onErr) {
       nv.addEventListener('error', () => {
         console.error(`[${boxSel}] pane ${i} failed:`, src, nv.error);
         onErr();
       }, { once: true });
     }
-
+  
     nv.addEventListener('loadedmetadata', () => {
       if (restart) nv.currentTime = 0;
       if (autoplay) nv.play().catch(()=>{});
     }, { once: true });
-
+  
     let adaptive = false;
-
+  
     if (isM3U8(src)) {
       if (nv.canPlayType('application/vnd.apple.mpegurl')) {
-        nv.src = src; nv.load(); adaptive = true;
+        nv.src = src; nv.load();
+        adaptive = true;
       } else if (window.Hls && window.Hls.isSupported()) {
         const hls = new Hls();
         hls.on(Hls.Events.ERROR, (_, data) => {
@@ -195,13 +198,14 @@ function createThreeWayCompare({
       nv._dash = p;
       adaptive = true;
     }
-
+  
     if (!adaptive) { nv.src = src; nv.load(); }
-
+  
     oldV.parentNode.replaceChild(nv, oldV);
     vids[i] = nv;
     applyClips();
   }
+  
 
   function updatePaneSrc(i, {restart=true, autoplay=true} = {}) {
     const { kernel, feature } = state.panes[i];
@@ -209,16 +213,11 @@ function createThreeWayCompare({
     const playable = extOrder.filter(canPlay);
     const tryExts = (playable.length ? playable : extOrder).slice();
     let k = 0;
-
     const tryLoad = () => {
       const ext = tryExts[k];
       const src = buildSrc(state.scene, kernel, feature, ext);
-      // If mapping missing, skip to next ext
-      if (!src) {
-        if (++k < tryExts.length) { tryLoad(); return; }
-        console.warn(`[${boxSel}] no mapped source for pane ${i} (${state.scene}/${kernel}/${feature})`);
-        return;
-      }
+      console.log(src)
+      // console.log(`[${boxSel}] pane ${i} -> ${src}`);
       setVideoSource(i, src, restart, autoplay, () => {
         if (++k < tryExts.length) tryLoad();
       });
@@ -235,16 +234,8 @@ function createThreeWayCompare({
     vids.forEach(v => { try { v.currentTime = 0; v.play(); } catch(e){} });
   }
 
-  // --- Click-to-toggle with drag suppression --------------------------------
-  const DRAG_THRESHOLD_PX = 6;
-  let dragging = null;     // 0 | 1 | null
-  let dragMoved = false;   // true if movement exceeded threshold
-  let dragStartX = 0;
-
   // click anywhere in box to toggle play/pause (ignore controls)
   box.addEventListener('click', (e) => {
-    // ignore if this click came right after a drag or currently dragging
-    if (dragMoved || dragging !== null) return;
     if (e.target.tagName === "SELECT" || e.target.closest(".controls")) return;
     state.playing = !state.playing;
     vids.forEach(v => state.playing ? v.play().catch(()=>{}) : v.pause());
@@ -252,6 +243,7 @@ function createThreeWayCompare({
 
   // Dragging logic (two dividers)
   const MIN_GAP = 10; // %
+  let dragging = null; // 0|1
   function onMove(clientX) {
     if (dragging === null) return;
     const r = box.getBoundingClientRect();
@@ -265,65 +257,15 @@ function createThreeWayCompare({
     }
     state.edges = [x0, x1];
     applyClips();
-
-    // Keep videos alive during drag if already playing
-    if (state.playing) {
-      vids.forEach(v => v.play().catch(()=>{}));
-    }
   }
-
-  function beginDrag(which, startClientX, srcEvent) {
-    dragging = which;
-    dragMoved = false;
-    dragStartX = startClientX;
-    document.body.style.cursor = "col-resize";
-    // Prevent this press from bubbling to container (which would toggle)
-    if (srcEvent) { srcEvent.stopPropagation(); srcEvent.preventDefault(); }
-  }
-
-  function endDrag() {
-    dragging = null;
-    document.body.style.cursor = "";
-    // Suppress the trailing click just for this event loop tick
-    setTimeout(() => { dragMoved = false; }, 0);
-  }
-
   dividers.forEach(div => {
-    const which = Number(div.dataset.divider);
-
-    // Mouse
-    div.addEventListener('mousedown', (e) => {
-      beginDrag(which, e.clientX, e);
-    }, { passive: false });
-
-    // Touch
-    div.addEventListener('touchstart', (e) => {
-      const x = (e.touches && e.touches[0]) ? e.touches[0].clientX : 0;
-      beginDrag(which, x, e);
-    }, { passive: false });
-
-    // Don’t let clicks on the divider bubble to the box
-    div.addEventListener('click', (e) => e.stopPropagation());
+    div.addEventListener('mousedown', (e)=>{ dragging = Number(div.dataset.divider); document.body.style.cursor="col-resize"; e.preventDefault(); });
+    div.addEventListener('touchstart', (e)=>{ dragging = Number(div.dataset.divider); document.body.style.cursor="col-resize"; }, {passive:false});
   });
-
-  window.addEventListener('mousemove', (e) => {
-    if (dragging !== null && Math.abs(e.clientX - dragStartX) > DRAG_THRESHOLD_PX) {
-      dragMoved = true;
-    }
-    onMove(e.clientX);
-  }, { passive: false });
-
-  window.addEventListener('touchmove', (e) => {
-    const x = (e.touches && e.touches[0]) ? e.touches[0].clientX : 0;
-    if (dragging !== null && Math.abs(x - dragStartX) > DRAG_THRESHOLD_PX) {
-      dragMoved = true;
-    }
-    onMove(x);
-  }, { passive: false });
-
-  window.addEventListener('mouseup', endDrag, { passive: true });
-  window.addEventListener('touchend', endDrag, { passive: true });
-  window.addEventListener('touchcancel', endDrag, { passive: true });
+  window.addEventListener('mousemove', (e)=>onMove(e.clientX));
+  window.addEventListener('touchmove', (e)=>onMove(e.touches[0].clientX), {passive:false});
+  window.addEventListener('mouseup', ()=>{ dragging=null; document.body.style.cursor=""; });
+  window.addEventListener('touchend', ()=>{ dragging=null; document.body.style.cursor=""; });
 
   // Populate feature selects for a scene (only if queriesByScene is provided)
   function populateFeatureSelectsForScene(scene) {
@@ -355,7 +297,7 @@ function createThreeWayCompare({
       restartAllFromStartAndPlay();
     });
   });
-
+  
   // features (for A the HTML list is static; for D/B we also repopulate per scene)
   featureSelects.forEach(sel => {
     const i = Number(sel.dataset.vid);
@@ -409,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
     buildSrc: buildAttentionSrc,
     queriesByScene: QUERIES_BY_SCENE_B,
     initialScene: 'Figurines',
+    // Prefer MP4 first unless you specifically want WebM first:
     // extOrder: ['webm','mp4'],
   });
 
@@ -419,10 +362,11 @@ document.addEventListener('DOMContentLoaded', () => {
     buildSrc: buildQuantizedSrc,
     queriesByScene: QUERIES_BY_SCENE_B,
     initialScene: 'Figurines',
+    // Prefer MP4 first unless you specifically want WebM first:
     // extOrder: ['webm','mp4'],
   });
 
-  // Quantized Features (D): segmentation results
+  // Quantized Features (D):segementation results
   createThreeWayCompare({
     boxSel:  '#geom-compare-D',
     tabsSel: '#geometry-decomposition-D',
@@ -434,6 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { kernel: "2DGS", feature: "RGB" },
       { kernel: "DBS",  feature: "waldo" },
     ],
+    // Prefer MP4 first unless you specifically want WebM first:
     // extOrder: ['webm','mp4'],
   });
 });

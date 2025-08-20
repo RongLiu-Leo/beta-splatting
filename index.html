@@ -38,44 +38,25 @@
   <div class="authors is-size-5">
     <!-- <div><b>SIGGRAPH 2025</b></div>    -->
     
-    <a href="https://saliteta.github.io/">Butian Xiong*</a>
+    <a href="https://saliteta.github.io/">Butian Xiong†</a>
 
-    <a href="https://rongliu-leo.github.io/">Rong Liu*</a>
+    <a href="https://rongliu-leo.github.io/">Rong Liu†</a>
   
-    <a href="https://www.linkedin.com/in/kenneth-x">Kenneth Xu†</a>
+    <a href="https://www.linkedin.com/in/kenneth-x">Kenneth Xu*</a>
   
-    <a href="https://www.linkedin.com/in/meida-chen-938a265b/">Meida Chen*</a>
+    <a href="https://www.linkedin.com/in/meida-chen-938a265b/">Meida Chen†</a>
   
-    <a href="https://www.linkedin.com/in/andrewfeng-ict/">Andrew Feng*</a>
+    <a href="https://www.linkedin.com/in/andrewfeng-ict/">Andrew Feng†</a>
   
   </div>
   <div class="affiliations is-size-5">
     
-    <a href="https://usc.edu/" style="color:#990000;">*University of Southern California</a>
-    <a href="https://umich.edu/" style="color:#002699;">†University of Michigan</a>
+    <a href="https://usc.edu/" style="color:#990000;">†University of Southern California</a>
+    <a href="https://umich.edu/" style="color:#002699;">*University of Michigan</a>
   
   </div>
   <div class="links">
-    <span class="link-block">
-      <a href="https://arxiv.org/abs/2508.12216" class="external-link button is-rounded">
-        <span class="icon">
-          
-          
-            <i class="ai ai-arxiv"></i>
-          
-        </span>
-        <span>Arxiv</span>
-      </a>
-    </span>
-
-    <span class="link-block">
-      <a href="https://arxiv.org/pdf/2508.12216.pdf" class="external-link button is-rounded">
-        <span class="icon">
-          <i class="fas fa-file-pdf"></i>
-        </span>
-        <span>PDF</span>
-      </a>
-    </span>
+    
     <span class="link-block">
       <a href="https://github.com/saliteta/splat-distiller/tree/main" class="external-link button is-rounded">
         <span class="icon">
@@ -123,7 +104,8 @@
     <a href="https://drsplat.github.io/" target="_blank" rel="noopener">DrSplat</a>. 
     The Intuition behind it could be summarized as a weighted sum according to the contribution of the 
     splats to the final rendering features. When the splats' geometry is fixed, that contribution is 
-    agnostic to the feature type. 
+    agnostic to the feature type. However, in the above mentioned literature, there is no theoratical
+    explaination of how good this pre-conditioner is. And that is due to lacking of theoratical definition
   </p>
 
 
@@ -553,14 +535,14 @@
 
 <div class="BibTeX">
   <h2>BibTeX</h2>
-  <pre><code class="language-bibtex">@misc{xiong2025splatfeaturesolver,
-    title={Splat Feature Solver}, 
-    author={Butian Xiong and Rong Liu and Kenneth Xu and Meida Chen and Andrew Feng},
-    year={2025},
-    eprint={2508.12216},
+  <pre><code class="language-bibtex">@misc{liu2025deformablebetasplatting,
+    title={ Deformable Beta Splatting },
+    author={ Rong Liu and Dylan Sun and Meida Chen and Yue Wang and Andrew Feng },
+    year={ 2025 },
+    eprint={ 2501.18630 },
     archivePrefix={arXiv},
     primaryClass={cs.CV},
-    url={https://arxiv.org/abs/2508.12216}, 
+    url={ https://arxiv.org/abs/2501.18630 }
 }
 </code></pre>
 </div>
@@ -569,7 +551,16 @@
 <footer class="footer">
   <h2>Acknowledgments</h2>
   <p>
-    The authors would like to thank our primary sponsors of this research: Mr. Clayton Burford of the Battlespace Content Creation (BCC) team at Simulation and Training Technology Center (STTC). This work is supported by University Affiliated Research Center (UARC) award W911NF-14-D-0005. Statements and opinions expressed and content included do not necessarily reflect the position or the policy of the Government, and no official endorsement should be inferred.
+    The authors would like to thank our primary sponsors of this research: Mr. Clayton Burford of the Battlespace Content Creation
+    (BCC) team at Simulation and Training Technology Center (STTC).
+    This work is supported by University Affiliated Research Center
+    (UARC) award W911NF-14-D-0005, a Toyota Research Institute University 2.0 program, a gift fund from Dolby, and a gift fund from
+    Google DeepMind. Statements and opinions expressed and content
+    included do not necessarily reflect the position or the policy of the
+    Government, and no official endorsement should be inferred.
+  </p>
+  <p>
+    We would also like to thank Professor <a href="https://jordanhalsey.com/">Jordan Halsey</a> for providing the voiceover for our demo video!
   </p>
   <p>
     This website is adapted and modified from <a href="https://github.com/RongLiu-Leo/arxsite">ArxSite</a>.
