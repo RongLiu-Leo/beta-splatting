@@ -4,7 +4,7 @@ const seg = (s) => encodeURIComponent(s ?? "");
 // If there is a mapping for a local path, return the HLS URL; else return the local path.
 function mapOrLocal(localPath) {
   const m = (window.VIDEO_MAP || {});
-  return m[localPath];
+  return m[localPath] || localPath;
 }
 
 // Build path per instance (A vs B)
@@ -148,7 +148,7 @@ function createThreeWayCompare({
   const isMPD  = (u) => /\.mpd(\?|$)/i.test(u);
   const isAbs  = (u) => /^https?:\/\//i.test(u);
   
-
+  
   function setVideoSource(i, src, restart=true, autoplay=true, onErr=null) {
     const oldV = vids[i];
   
