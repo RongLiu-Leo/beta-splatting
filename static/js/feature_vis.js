@@ -1,43 +1,22 @@
 // ------------ utils ------------
 const seg = (s) => encodeURIComponent(s ?? "");
 
-// If there is a mapping for a local path, return the HLS URL; else return the local path.
-function mapOrLocal(localPath) {
-  const m = (window.VIDEO_MAP || {});
-  return m[localPath] || localPath;
-}
-
 // Build path per instance (A vs B)
-const buildFeatureSrc = (scene, kernel, feature, ext='mp4') => {
-  const local = `./static/videos/${seg(scene)}/${seg(kernel)}/${seg(feature)}.${ext}`;
-  return mapOrLocal(local);
-};
+const buildFeatureSrc = (scene, kernel, feature, ext='mp4') =>
+  `./static/videos/${seg(scene)}/${seg(kernel)}/${seg(feature)}.${ext}`;
 
 // Attention maps live in an extra folder:
-const buildAttentionSrc = (scene, kernel, feature, ext='mp4') => {
-  const local = `./static/videos/${seg(scene)}/${seg(kernel)}/attention_map/${seg(feature)}.${ext}`;
-  return mapOrLocal(local);
-};
+const buildAttentionSrc = (scene, kernel, feature, ext='mp4') =>
+  `./static/videos/${seg(scene)}/${seg(kernel)}/attention_map/${seg(feature)}.${ext}`;
 
 // Quantized features live in an extra folder:
-const buildQuantizedSrc = (scene, kernel, feature, ext='mp4') => {
-  const local = `./static/videos/${seg(scene)}/${seg(kernel)}/quantized/${seg(feature)}.${ext}`;
-  return mapOrLocal(local);
-};
+const buildQuantizedSrc = (scene, kernel, feature, ext='mp4') =>
+  `./static/videos/${seg(scene)}/${seg(kernel)}/quantized/${seg(feature)}.${ext}`;
 
 // Segmentation results live in an extra folder:
-const buildSegmentationSrc = (scene, kernel, feature, ext='mp4') => {
-  const local = `./static/videos/${seg(scene)}/${seg(kernel)}/segmentation/${seg(feature)}.${ext}`;
-  return mapOrLocal(local);
-};
+const buildSegmentationSrc = (scene, kernel, feature, ext='mp4') =>
+  `./static/videos/${seg(scene)}/${seg(kernel)}/segmentation/${seg(feature)}.${ext}`;
 
-function canPlay(ext) {
-  const v = document.createElement('video');
-  const mime = ext === 'webm'
-    ? 'video/webm; codecs="vp9,opus"'
-    : 'video/mp4; codecs="avc1.42E01E,mp4a.40.2"';
-  return v.canPlayType(mime) !== '';
-}
 
 // Label/value options per scene ONLY for the Attention Query window (B)
 const QUERIES_BY_SCENE_B = {
@@ -100,7 +79,6 @@ const QUERIES_BY_SCENE_D = {
 
 // ------------ three-way overlapped compare (scoped per container) ------------
 function createThreeWayCompare({
-  
   boxSel, tabsSel, buildSrc, queriesByScene=null,
   initialScene="Figurines",
   initialPanes=[ // A, B, C defaults
@@ -110,11 +88,6 @@ function createThreeWayCompare({
   ],
   extOrder=['mp4','webm'],
 }) {
-  const isHls = (u) => /\.m3u8(\?|$)/.test(u);
-  const canNativeHls = () => {
-    const v = document.createElement('video');
-    return v.canPlayType('application/vnd.apple.mpegURL') !== '';
-  };
   const box = document.querySelector(boxSel);
   const tabs = document.querySelectorAll(`${tabsSel} .nav-link`);
   if (!box) return;
@@ -144,64 +117,28 @@ function createThreeWayCompare({
     if (d0) d0.style.left = `calc(${x0}% - 3px)`;
     if (d1) d1.style.left = `calc(${x1}% - 3px)`;
   }
-  const isM3U8 = (u) => /\.m3u8(\?|$)/i.test(u);
-  const isMPD  = (u) => /\.mpd(\?|$)/i.test(u);
-  const isAbs  = (u) => /^https?:\/\//i.test(u);
-  
-  
+
   function setVideoSource(i, src, restart=true, autoplay=true, onErr=null) {
     const oldV = vids[i];
-  
-    // clean up previous adaptive players
-    if (oldV._hls) { try { oldV._hls.destroy(); } catch(e){} delete oldV._hls; }
-    if (oldV._dash){ try { oldV._dash.reset();   } catch(e){} delete oldV._dash; }
-  
     const nv = oldV.cloneNode(true);
-    nv.muted = true; 
-    nv.playsInline = true;
-  
+    nv.muted = true; nv.playsInline = true;
+
     if (onErr) {
       nv.addEventListener('error', () => {
         console.error(`[${boxSel}] pane ${i} failed:`, src, nv.error);
         onErr();
       }, { once: true });
     }
-  
     nv.addEventListener('loadedmetadata', () => {
       if (restart) nv.currentTime = 0;
       if (autoplay) nv.play().catch(()=>{});
     }, { once: true });
-  
-    let adaptive = false;
-  
-    if (isM3U8(src)) {
-      if (nv.canPlayType('application/vnd.apple.mpegurl')) {
-        nv.src = src; nv.load();
-        adaptive = true;
-      } else if (window.Hls && window.Hls.isSupported()) {
-        const hls = new Hls();
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data?.fatal && onErr) onErr();
-        });
-        hls.loadSource(src);
-        hls.attachMedia(nv);
-        nv._hls = hls;
-        adaptive = true;
-      }
-    } else if (isMPD(src) && window.dashjs) {
-      const p = dashjs.MediaPlayer().create();
-      p.initialize(nv, src, true);
-      nv._dash = p;
-      adaptive = true;
-    }
-  
-    if (!adaptive) { nv.src = src; nv.load(); }
-  
+
+    nv.src = src; nv.load();
     oldV.parentNode.replaceChild(nv, oldV);
     vids[i] = nv;
     applyClips();
   }
-  
 
   function updatePaneSrc(i, {restart=true, autoplay=true} = {}) {
     const { kernel, feature } = state.panes[i];
