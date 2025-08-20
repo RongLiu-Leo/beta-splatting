@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="description"
-        content="Splat Feature Solver">
-  <meta name="keywords" content="Splat Feature Solver, Splat Feature Solver, 3DGS, 3D Gaussian Splatting, splatting, Beta Kernel, DrSplat, Semantic Segmentation, 3D Scene Understanding, Feature Lifting, Feature Solver, AAAI 2026">
-  <meta name="author" content="Butian Xiong, Rong Liu, Kenneth Xu, Meida Chen, Andrew Feng">
+        content="Deformable Beta Splatting">
+  <meta name="keywords" content="Deformable Beta Splatting, Beta Splatting, 3DBS, DBS, 3D Gaussian Splatting, 3DGS, splatting, Beta Kernel, SPherical Beta, MCMC, Radiance Fields, SIGGRAPH 2025">
+  <meta name="author" content="Rong Liu, Dylan Sun, Meida Chen, Yue Wang, Andrew Feng">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Splat Feature Solver</title>
+  <title>Deformable Beta Splatting</title>
 
   <link rel="stylesheet" href="./static/css/bootstrap-4.4.1.css">
 
@@ -17,9 +17,8 @@
   <link rel="stylesheet" href="./static/css/style.css">
   <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
   <link rel="stylesheet" href="./static/css/dics.original.css">
-  <script src="./static/js/feature_vis.js"></script>
   <script src="./static/js/event_handler.js"></script>
   <script src="./static/js/dics.original.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -33,32 +32,59 @@
 </head>
 <body>
   <div class="title">
-    <h1>Splat Feature Solver</h1>
+    <h1>Deformable Beta Splatting</h1>
   </div>
   <div class="authors is-size-5">
-    <!-- <div><b>SIGGRAPH 2025</b></div>    -->
-    
-    <a href="https://saliteta.github.io/">Butian Xiong†</a>
-
-    <a href="https://rongliu-leo.github.io/">Rong Liu†</a>
+    <div><b>SIGGRAPH 2025</b></div>   
+    <a href="https://rongliu-leo.github.io/">Rong Liu*</a>
   
-    <a href="https://www.linkedin.com/in/kenneth-x">Kenneth Xu*</a>
+    <a href="https://github.com/DylanWaken">Dylan Sun*</a>
   
-    <a href="https://www.linkedin.com/in/meida-chen-938a265b/">Meida Chen†</a>
+    <a href="https://www.linkedin.com/in/meida-chen-938a265b/">Meida Chen</a>
+  
+    <a href="https://yuewang.xyz/">Yue Wang†</a>
   
     <a href="https://www.linkedin.com/in/andrewfeng-ict/">Andrew Feng†</a>
   
   </div>
+  <div class="authors is-size-5">
+    
+    <p>*Co-first authors &nbsp;&nbsp;&nbsp;&nbsp; †Co-advisors</p>
+    
+  </div>
   <div class="affiliations is-size-5">
     
-    <a href="https://usc.edu/" style="color:#990000;">†University of Southern California</a>
-    <a href="https://umich.edu/" style="color:#002699;">*University of Michigan</a>
+    <a href="https://usc.edu/" style="color:#990000;">University of Southern California</a>
   
   </div>
   <div class="links">
     
     <span class="link-block">
-      <a href="https://github.com/saliteta/splat-distiller/tree/main" class="external-link button is-rounded">
+      <a href="https://arxiv.org/abs/2501.18630" class="external-link button is-rounded">
+        <span class="icon">
+          
+          
+            <i class="ai ai-arxiv"></i>
+          
+        </span>
+        <span>arXiv</span>
+      </a>
+    </span>
+  
+    <span class="link-block">
+      <a href="https://arxiv.org/pdf/2501.18630.pdf" class="external-link button is-rounded">
+        <span class="icon">
+          
+          
+            <i class="fas fa-file-pdf"></i>
+          
+        </span>
+        <span>Paper</span>
+      </a>
+    </span>
+  
+    <span class="link-block">
+      <a href="https://github.com/RongLiu-Leo/beta-splatting" class="external-link button is-rounded">
         <span class="icon">
           
           
@@ -68,8 +94,9 @@
         <span>Code</span>
       </a>
     </span>
+  
     <span class="link-block">
-      <a href="https://youtu.be/CH-G5hbvArM" class="external-link button is-rounded">
+      <a href="https://www.youtube.com/watch?v=3ts52fBZRDs" class="external-link button is-rounded">
         <span class="icon">
           
           
@@ -83,454 +110,143 @@
   </div>
   <div class="teaser">
     <div class="publication-video"> 
-      <iframe width="560" height="315" src="https://www.youtube.com/embed/CH-G5hbvArM?si=CFrMp0BqeMmZYZph" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      <iframe src="https://www.youtube.com/embed/3ts52fBZRDs?si=0_EaBcRvZ0fgGdIW" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
     </div>
   </div>
 
 <div class="abstract">
   <h2>Abstract</h2>
   <p>
-    Feature lifting has emerged as a crucial component in 3D scene understanding, enabling the attachment of rich image feature descriptors (e.g., DINO, CLIP) onto splat-based 3D representations. The core challenge lies in optimally assigning rich general attributes to 3D primitives while addressing the inconsistency issues from multi-view images. We present a unified, kernel- and feature-agnostic formulation of the feature lifting problem as a sparse linear inverse problem, which can be solved efficiently in closed form. Our approach admits a provable upper bound on the global optimal error under convex losses for delivering high quality lifted features. To address inconsistencies and noise in multi-view observations, we introduce two complementary regularization strategies to stabilize the solution and enhance semantic fidelity. Tikhonov Guidance enforces numerical stability through soft diagonal dominance, while Post-Lifting Aggregation filters noisy inputs via feature clustering. Extensive experiments demonstrate that our approach achieves state-of-the-art performance on open-vocabulary 3D segmentation benchmarks, outperforming training-based, grouping-based, and heuristic-forward baselines while producing the lifted features in minutes.
+    3D Gaussian Splatting (3DGS) has advanced radiance field reconstruction by enabling real-time rendering. However, its reliance on Gaussian kernels for geometry and low-order Spherical Harmonics (SH) for color encoding limits its ability to capture complex geometries and diverse colors. We introduce Deformable Beta Splatting (DBS), a deformable and compact approach that enhances both geometry and color representation. DBS replaces Gaussian kernels with deformable Beta Kernels, which offer bounded support and adaptive frequency control to capture fine geometric details with higher fidelity while achieving better memory efficiency. In addition, we extended the Beta Kernel to color encoding, which facilitates improved representation of diffuse and specular components, yielding superior results compared to SH-based methods. Furthermore, Unlike prior densification techniques that depend on Gaussian properties, we mathematically prove that adjusting regularized opacity alone ensures distribution-preserved Markov chain Monte Carlo (MCMC), independent of the splatting kernel type. Experimental results demonstrate that DBS achieves state-of-the-art visual quality while utilizing only 45% of the parameters and rendering 1.5x faster than 3DGS-based methods. Notably, for the first time, splatting-based methods outperform state-of-the-art Neural Radiance Fields, highlighting the superior performance and efficiency of DBS for real-time radiance field rendering.
   </p>
 </div>
 
 <section class="section">
-  <h2>Row Sum Pre-Conditioner</h2>
-  <p>
-    The row sum pre-conditioner has been discovered independently by
-    <a href="https://david-dou.github.io/CoSSegGaussians/" target="_blank" rel="noopener">CosegGaussian</a>,
-    <a href="https://insait-institute.github.io/OccamLGS/" target="_blank" rel="noopener">OccamLGS</a>,
-    as well as
-    <a href="https://drsplat.github.io/" target="_blank" rel="noopener">DrSplat</a>. 
-    The Intuition behind it could be summarized as a weighted sum according to the contribution of the 
-    splats to the final rendering features. When the splats' geometry is fixed, that contribution is 
-    agnostic to the feature type. However, in the above mentioned literature, there is no theoratical
-    explaination of how good this pre-conditioner is. And that is due to lacking of theoratical definition
-  </p>
-
-
-  <div>
-    <img src="static/images/intuition.png" alt="Intuition" style="width: 100%; height: auto; display: block; margin: 0 auto;">
-    <p>We consider a simple scene with a single Gaussian and multiple cameras viewing it. The goal is to assign an 
-      attribute to that Gaussian so as to minimize the L2 loss for each camera. The optimal solution is simply the 
-      average of the four camera features. In subfigure~(b), we introduce a second Gaussian that blocks one view; 
-      intuitively, the optimal feature for the target Gaussian should be closer to the features of the three unblocked cameras, 
-      while the occluding Gaussian should match the rightmost camera’s feature. When multiple Gaussians with different alpha 
-      values are present (subfigure~(c)), each target feature becomes a weighted average of the corresponding camera features, 
-      as illustrated in subfigure~(d). Interestingly, computing these weights is equivalent to performing a forward rendering pass.
-      This key insight makes the row sum pre-condtioner a fast approximation 
+  <h2>Beta Kernel</h2>
+  <p>Beta Kernel adapts its shape to capture fine geometric and texture details. Negative b generates flatter surface but sharper cutoffs for learning solid support and sharp geometry, while positive b generates sharper peaks for learning high frequency details. When b=0, the beta kernel is almost identical to Gaussian Kernel.</p>
+  <b>Drag the slider to see how Beta Kernel deforms.</b>
+  <div class="has-text-centered">
+    <p style=" display: flex;
+      justify-content: center;
+      align-items: center;">b = 0
     </p>
+    <input class="slider is-fullwidth is-large is-info is-danger" id="interpolation-slider" step="0.1" min="-5" max="5" value="0" type="range" style="margin-top: 0px;margin-bottom: 0px;" oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
+  </div>
+  <div style="display: flex; flex-wrap: nowrap; gap: 0px;">
+    <!-- 2D Plot -->
+    <div id="plot" style="width: 100%;"></div>
+    <!-- 3D Surface Plot -->
+    <div id="plot3d" style="width: 100%;"></div>
   </div>
 </section>
 
-
-  <section class="section">
-    <h2>Feature Lifting Problem</h2>
-
-  
-  
-    <div>
-      <img src="static/images/problem_definition.png" alt="Problem" style="width: 100%; height: auto; display: block; margin: 0 auto;">
-      <p>We define the feature lifting problem as a sparse linear inverse problem. The goal is to assign an 
-        attribute to each primitive so as to minimize the convex loss for the feature lifting equation. To 
-        construct that matrix, we only need to know the contribution of each primitive to the final rendering
-        results, as well as the sensor parameters. Therefore, in the above definition, feature lifting problem
-        is agnostic to the feature type, and the primitive kernel. We also prove that the row sum pre-conditioner
-        has a provable upper bound of the feature lifting problem. And we proposed two complementary regularization
-        strategies to stabilize the solution and enhance semantic fidelity. Tikhonov Guidance enforces numerical stability
-        through soft diagonal dominance, while Post-Lifting Aggregation filters noisy inputs via feature clustering.
-      </p>
-    </div>
-  </section>
-
-
-
 <section class="section">
-  <h2>Feature Visualization</h2>
-  <p>To visualize the feature lifting results, we use PCA to reduce the feature dimension to 3D and display with colors.</p>
-  <b>Click anywhere to play/pause. Drag the vertical bars to reveal different videos.</b>
+  <h2>Geometry Decomposition</h2>
+  <p>The Beta Kernel's parameter b intrinsically controls the geometry frequency representation of each primitive. Lower b values correspond to lower-frequency primitives, which predominantly capture the fundamental geometric structures of the scene. Conversely, higher b values encapsulate higher-frequency details, such as textures and fine surface variations.
 
-  <!-- Scene tabs -->
-  <ul class="nav nav-tabs nav-fill nav-justified" id="geometry-decomposition-A">
-    <li class="nav-item"><a class="nav-link active">Figurines</a></li>
-    <li class="nav-item"><a class="nav-link">Ramen</a></li>
-  </ul>
-
-  <!-- Overlapped compare box -->
-  <div class="compare-overlap" id="geom-compare-A">
-    <!-- Stacked videos (A=left, B=middle, C=right) -->
-    <video class="layer-video" data-vid="0" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="1" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="2" muted loop playsinline preload="metadata"></video>
-
-    <!-- Per-layer controls -->
-    <div class="controls controls-left">
-      <label>Kernel
-        <select class="kernel-select" data-vid="0">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>Feature
-        <select class="feature-select" data-vid="0">
-          <option value="clip">clip</option>
-          <option value="dino16">dino16</option>
-          <option value="dinov2">dinov2</option>
-          <option value="maskclip">maskclip</option>
-          <option value="resnet50">resnet50</option>
-          <option value="RGB">RGB</option>
-          <option value="SAMOpenCLIP">SAMOpenCLIP</option>
-          <option value="vit">vit</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-middle">
-      <label>Kernel
-        <select class="kernel-select" data-vid="1">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>Feature
-        <select class="feature-select" data-vid="1">
-          <option value="clip">clip</option>
-          <option value="dino16">dino16</option>
-          <option value="dinov2">dinov2</option>
-          <option value="maskclip">maskclip</option>
-          <option value="resnet50">resnet50</option>
-          <option value="RGB">RGB</option>
-          <option value="SAMOpenCLIP">SAMOpenCLIP</option>
-          <option value="vit">vit</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-right">
-      <label>Kernel
-        <select class="kernel-select" data-vid="2">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>Feature
-        <select class="feature-select" data-vid="2">
-          <option value="clip">clip</option>
-          <option value="dino16">dino16</option>
-          <option value="dinov2">dinov2</option>
-          <option value="maskclip">maskclip</option>
-          <option value="resnet50">resnet50</option>
-          <option value="RGB">RGB</option>
-          <option value="SAMOpenCLIP">SAMOpenCLIP</option>
-          <option value="vit">vit</option>
-        </select>
-      </label>
-    </div>
-
-    <!-- Two draggable dividers -->
-    <div class="divider" data-divider="0" title="Drag to resize"></div>
-    <div class="divider" data-divider="1" title="Drag to resize"></div>
-  </div>
-</section>
-
-
-
-<section class="section">
-  <h2>Attention Query</h2>
-  <p>To visualize the feature lifting results, turbo color map to visualize the attention score</p>
-  <b>Click anywhere to play/pause. Drag the vertical bars to reveal different videos.</b>
-
-  <!-- Scene tabs -->
-  <ul class="nav nav-tabs nav-fill nav-justified" id="geometry-decomposition-B">
-    <li class="nav-item"><a class="nav-link active">Figurines</a></li>
-    <li class="nav-item"><a class="nav-link">Ramen</a></li>
-  </ul>
-
-  <!-- Overlapped compare box -->
-  <div class="compare-overlap" id="geom-compare-B">
-    <!-- Stacked videos (A=left, B=middle, C=right) -->
-    <video class="layer-video" data-vid="0" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="1" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="2" muted loop playsinline preload="metadata"></video>
-
-    <!-- Per-layer controls -->
-    <div class="controls controls-left">
-      <label>Kernel
-        <select class="kernel-select" data-vid="0">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="0">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-middle">
-      <label>Kernel
-        <select class="kernel-select" data-vid="1">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="1">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-right">
-      <label>Kernel
-        <select class="kernel-select" data-vid="2">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="2">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-        </select>
-      </label>
-    </div>
-
-    <!-- Two draggable dividers -->
-    <div class="divider" data-divider="0" title="Drag to resize"></div>
-    <div class="divider" data-divider="1" title="Drag to resize"></div>
-  </div>
-</section>
-
-
-
-<section class="section">
-  <h2>Post Filtering Aggregation</h2>
-  <p>After the first lifting procedure, we provide a post-filtering aggregation to further refine the results. The intuition is to
-    filter out the unreliable masks generated by SAM. And emphasizing the diagnoal mask. During the aggregation, we conducted a scene
-    decomposition to quantize the features. Thereby providing more reasonable segmentation results.
+    By setting a mask based on the b parameter, we can selectively isolate primitives based on their frequency contributions. For example, we can also do a simple binary split based on a threshold (e.g., the mean of b values across all primitives). Primitives with 
+    b below the threshold primarily represent the scene's structures,  with primitives of b above the threshold provides texture details.
   </p>
-  <b>Click anywhere to play/pause. Drag the vertical bars to reveal different videos.</b>
-
-  <!-- Scene tabs -->
-  <ul class="nav nav-tabs nav-fill nav-justified" id="geometry-decomposition-C">
-    <li class="nav-item"><a class="nav-link active">Figurines</a></li>
-    <li class="nav-item"><a class="nav-link">Ramen</a></li>
+  <b>Click the video box to play or pause, and drag the sliders to compare them.</b>
+  <br>
+  <ul class="nav nav-tabs nav-fill nav-justified" id="geometry-decomposition">
+      <li class="nav-item">
+        <a class="nav-link active" onclick="geometrySceneEvent(0)">Bicycle</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" onclick="geometrySceneEvent(1)">Treehill</a>
+      </li>
   </ul>
-
-  <!-- Overlapped compare box -->
-  <div class="compare-overlap" id="geom-compare-C">
-    <!-- Stacked videos (A=left, B=middle, C=right) -->
-    <video class="layer-video" data-vid="0" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="1" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="2" muted loop playsinline preload="metadata"></video>
-
-    <!-- Per-layer controls -->
-    <div class="controls controls-left">
-      <label>Kernel
-        <select class="kernel-select" data-vid="0">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="0">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-middle">
-      <label>Kernel
-        <select class="kernel-select" data-vid="1">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="1">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-right">
-      <label>Kernel
-        <select class="kernel-select" data-vid="2">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="2">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-        </select>
-      </label>
-    </div>
-
-    <!-- Two draggable dividers -->
-    <div class="divider" data-divider="0" title="Drag to resize"></div>
-    <div class="divider" data-divider="1" title="Drag to resize"></div>
+  <div class="b-dics geometry">
+    <video muted loop src="./static/videos/bicycle/low.mp4" alt="Structure"></video>
+    <video muted loop src="./static/videos/bicycle/RGB.mp4" alt="Full"></video>
+    <video muted loop src="./static/videos/bicycle/high.mp4" alt="Detail"></video>
   </div>
 </section>
 
-
+<section class="section">
+  <h2>Spherical Beta</h2>
+  <p>Spherical Beta merges ambient and diffuse into a single base/diffuse color, then directly models specular lobes via learnable bounded Beta kernels—eliminating any reliance on surface normals or lighting source directions.</p>
+  <b>Drag the slider θ and φ to control the reflection direction and b to control reflection specularity.</b>
+  <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <div class="has-text-centered" style="flex: 1 1 0;">
+      <p style="display: flex; justify-content: center; align-items: center;">b = 0</p>
+      <input class="slider is-fullwidth is-large is-info is-danger" id="b-slider" step="0.1" min="-5" max="5" value="0" type="range" style="margin: 0px;"  oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
+    </div>
+    <div class="has-text-centered" style="flex: 1 1 0;">
+      <p style="display: flex; justify-content: center; align-items: center;">θ = 1</p>
+      <input class="slider is-fullwidth is-large is-info is-danger" id="theta-slider" step="0.01" min="0" max="3.14" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'θ = ' + (this.value)">
+    </div>
+    <div class="has-text-centered" style="flex: 1 1 0;">
+      <p style="display: flex; justify-content: center; align-items: center;">φ = 1</p>
+      <input class="slider is-fullwidth is-large is-info is-danger" id="phi-slider" step="0.01" min="0" max="6.28" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'φ = ' + (this.value)">
+    </div>
+  </div>
+  <div id="plotsb" style="width: 100%; height: 600px;"></div>
+</section>
 
 <section class="section">
-  <h2>Segmentation Results</h2>
-  <p>
-    We then apply the segmentation by contrasting the query word attention score with background attention score.
-    And use a default threshold 0.0 to generate the segmentation results.
-  </p>
-  <b>Click anywhere to play/pause. Drag the vertical bars to reveal different videos.</b>
-
-  <!-- Scene tabs -->
-  <ul class="nav nav-tabs nav-fill nav-justified" id="geometry-decomposition-D">
-    <li class="nav-item"><a class="nav-link active">Figurines</a></li>
-    <li class="nav-item"><a class="nav-link">Ramen</a></li>
+  <h2>Light Decomposition</h2>
+  <p>The diffuse component is obtained by using only the base color of Spherical Beta. Conversely, enabling only the specular component produces view‑dependent specular lighting effects. For comparison with 3DGS, the diffuse color is restricted to the zero‑degree spherical harmonic, while specular effects employ non‑zero degrees.</p>
+  <b>Click the video box to play or pause, and drag the sliders to compare them.</b>
+  <br>
+  <ul class="nav nav-tabs nav-fill nav-justified" id="scene-selection">
+      <li class="nav-item">
+        <a class="nav-link active" onclick="sceneEvent(0)">Counter</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" onclick="sceneEvent(1)">Garden</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" onclick="sceneEvent(2)">Kitchen</a>
+      </li>
   </ul>
-
-  <!-- Overlapped compare box -->
-  <div class="compare-overlap" id="geom-compare-D">
-    <!-- Stacked videos (A=left, B=middle, C=right) -->
-    <video class="layer-video" data-vid="0" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="1" muted loop playsinline preload="metadata"></video>
-    <video class="layer-video" data-vid="2" muted loop playsinline preload="metadata"></video>
-
-    <!-- Per-layer controls -->
-    <div class="controls controls-left">
-      <label>Kernel
-        <select class="kernel-select" data-vid="0">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="0">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-          <option value="RGB">RGB</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-middle">
-      <label>Kernel
-        <select class="kernel-select" data-vid="1">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="1">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-          <option value="RGB">RGB</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="controls controls-right">
-      <label>Kernel
-        <select class="kernel-select" data-vid="2">
-          <option value="3DGS">3DGS</option>
-          <option value="2DGS">2DGS</option>
-          <option value="DBS">DBS</option>
-        </select>
-      </label>
-      <label>query
-        <select class="feature-select" data-vid="2">
-          <option value="bag_of_snacks_with_pikachu_on_it">pikachu</option>
-          <option value="blue_elephant">blue elephant</option>
-          <option value="green_apple">green apple</option>
-          <option value="green_chair">green chair</option>
-          <option value="jake_the_dog">jake</option>
-          <option value="red_apple">red apple</option>
-          <option value="red_box">red box</option>
-          <option value="rubber_yellow_duck">rubber yellow duck</option>
-          <option value="waldo">waldo</option>
-          <option value="RGB">RGB</option>
-        </select>
-      </label>
-    </div>
-
-    <!-- Two draggable dividers -->
-    <div class="divider" data-divider="0" title="Drag to resize"></div>
-    <div class="divider" data-divider="1" title="Drag to resize"></div>
+  <div class="b-dics light">
+    <video muted loop src="./static/videos/counter/gs/Specular.mp4" alt="3D GS"></video>
+    <video muted loop src="./static/videos/counter/bs/Specular.mp4" alt="Ours"></video>
   </div>
+  <ul class="nav nav-tabs nav-fill nav-justified" id="light-decomposition" style="border-width: 0px 0px 1px 0px;">
+    <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
+      <a class="nav-link" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(0)">Diffuse</a>
+    </li>
+    <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
+      <a class="nav-link" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(1)">Full</a>
+    </li>
+    <li class="nav-item" style="border-radius: 0px 0px 10px 10px;">
+      <a class="nav-link active" style="border-radius: 0px 0px 10px 10px;" onclick="lightSceneEvent(2)">Specular</a>
+    </li>
+  </ul>
+</section>
+
+<section class="section">
+  <h2>Kernel-Agnostic MCMC</h2>
+  <p>Naively cloning primitives produces overly opaque renderings. Each densification step increases the loss and misleads the optimizer, resulting in suboptimal results. Furthermore, existing densification strategies depend on Gaussian-function properties and cannot be directly applied to arbitrary kernels. Kernel-Agnostic MCMC shows that regularizing opacity alone guarantees distribution-preserved densification, regardless of how many primitives densified or which splatting kernel is chosen.</p>
+  <b>First, drag the b and N sliders to compare the original and densified distributions and measure the error magnitude. Then lower the opacity slider and adjust b and N again to see if the gaps and errors are eliminated.</b>
+  <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <div class="has-text-centered" style="flex: 1 1 0;">
+      <p style="display: flex; justify-content: center; align-items: center;">b = 0</p>
+      <input class="slider is-fullwidth is-large is-info is-danger" id="b-mcmc" step="0.1" min="-5" max="5" value="0" type="range" style="margin: 0px;"  oninput="this.previousElementSibling.textContent = 'b = ' + (this.value)">
+    </div>
+    <div class="has-text-centered" style="flex: 1 1 0;">
+      <p style="display: flex; justify-content: center; align-items: center;">opacity = 1</p>
+      <input class="slider is-fullwidth is-large is-info is-danger" id="o-mcmc" step="0.01" min="0" max="1" value="1" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'opacity = ' + (this.value)">
+    </div>
+    <div class="has-text-centered" style="flex: 1 1 0;">
+      <p style="display: flex; justify-content: center; align-items: center;">N = 6</p>
+      <input class="slider is-fullwidth is-large is-info is-danger" id="N-mcmc" step="1" min="2" max="10" value="6" type="range" style="margin: 0px;" oninput="this.previousElementSibling.textContent = 'N = ' + (this.value)">
+    </div>
+  </div>
+  <div style="display: flex; flex-wrap: nowrap; gap: 0px;">
+    <div id="plotmcmc" style="width: 100%;"></div>
+    <div id="plotmcmc_splat" style="width: 100%;"></div>
+  </div>
+</section>
+
+<section class="section">
+  <h2>Benchmarks</h2>
+  <img src="./static/images/nerf.png" alt="Benchmarks" style="width: 88%; height: auto; display: block; margin: 0 auto;">
+  <img src="./static/images/360.png" alt="Benchmarks" style="width: 88%; height: auto; display: block; margin: 0 auto;">
+  <img src="./static/images/efficiency.png" alt="Benchmarks" style="width: 88%; height: auto; display: block; margin: 0 auto;">
 </section>
 
 <div class="BibTeX">
