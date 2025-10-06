@@ -27,14 +27,15 @@ body {
   margin-bottom: 0!important;
 }
 
-.section {
-  margin: 0px auto;
-  max-width: 1080px;
-}
-
 .abstract {
   max-width: 720px;
   margin: 40px auto;
+}
+
+.section {
+  margin: 0px auto;
+  max-width: 1080px;
+  padding: 20px 20px;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -82,14 +83,11 @@ a:hover {
 /* Teaser Section */
 .teaser {
   text-align: center;
-  width: 88%;
   margin: 0 auto;
+  padding: 0;
 }
 
-.teaser img,
 .teaser video {
-  max-width: 100%;
-  height: auto;
   border-radius: 5px;
 }
 
