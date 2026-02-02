@@ -718,13 +718,80 @@ class BetaModel:
             self._rotation[idxs],
         )
 
+    # Fixed torch.multinomial() 2^24 limit using chunked sampling
+    # Handles distributions with >16.7M elements (FP32 precision constraint)
+    # Maintains same interface - drop-in replacement
     def _sample_alives(self, probs, num, alive_indices=None):
         probs = probs / (probs.sum() + torch.finfo(torch.float32).eps)
-        sampled_idxs = torch.multinomial(probs, num, replacement=True)
+        
+        # PyTorch multinomial limit
+        MAX_CATEGORIES = 2**24 - 1
+        
+        if len(probs) <= MAX_CATEGORIES:
+            # Original implementation for smaller cases
+            sampled_idxs = torch.multinomial(probs, num, replacement=True)
+        else:
+            # Chunked sampling for large cases
+            sampled_idxs = []
+            remaining_samples = num
+            current_start_idx = 0  
+            
+            # Pre-calculate chunk weights for proportional allocation
+            chunk_weights = []
+            temp_start = 0
+            while temp_start < len(probs):
+                chunk_end = min(temp_start + MAX_CATEGORIES, len(probs))
+                chunk_weight = probs[temp_start:chunk_end].sum().item()
+                chunk_weights.append(chunk_weight)
+                temp_start = chunk_end
+            
+            total_weight = sum(chunk_weights)
+            chunk_idx = 0
+            
+            while remaining_samples > 0 and current_start_idx < len(probs):
+                # Calculate chunk boundaries
+                chunk_end = min(current_start_idx + MAX_CATEGORIES, len(probs))
+                chunk_probs = probs[current_start_idx:chunk_end]
+                
+                # Calculate how many samples this chunk should get
+                if chunk_idx < len(chunk_weights) - 1:
+                    # Proportional allocation for non-last chunks
+                    chunk_samples = int(num * chunk_weights[chunk_idx] / total_weight)
+                else:
+                    # Give all remaining samples to the last chunk 
+                    chunk_samples = remaining_samples
+                
+                chunk_samples = min(chunk_samples, remaining_samples)
+                
+                if chunk_samples > 0:
+                    # Normalize chunk probabilities
+                    chunk_probs_norm = chunk_probs / (chunk_probs.sum() + torch.finfo(torch.float32).eps)
+                    
+                    # Sample from chunk (LOCAL indices)
+                    local_sampled = torch.multinomial(chunk_probs_norm, chunk_samples, replacement=True)
+                    
+                    # Convert to GLOBAL indices
+                    global_sampled = local_sampled + current_start_idx
+                    sampled_idxs.append(global_sampled)
+                
+                # Move to next chunk
+                current_start_idx = chunk_end
+                remaining_samples -= chunk_samples
+                chunk_idx += 1
+            
+            sampled_idxs = torch.cat(sampled_idxs) if sampled_idxs else torch.empty(0, dtype=torch.long, device=probs.device)
+        
         if alive_indices is not None:
             sampled_idxs = alive_indices[sampled_idxs]
-        ratio = torch.bincount(sampled_idxs)[sampled_idxs]
+        
+        # Calculate ratio with proper length
+        if alive_indices is not None:
+            ratio = torch.bincount(sampled_idxs, minlength=len(alive_indices))[sampled_idxs]
+        else:
+            ratio = torch.bincount(sampled_idxs, minlength=len(probs))[sampled_idxs]
+        
         return sampled_idxs, ratio
+    
 
     def relocate_gs(self, dead_mask=None):
         print(f"Relocate: {dead_mask.sum().item()}")
