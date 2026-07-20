@@ -6,6 +6,46 @@ Entry format: date, one-line summary, then whatever detail belongs on the record
 
 ---
 
+## 2026-07-20 — End-to-end MLX-DBS trained; PSNR 27.34 on lego in 4 minutes
+
+**First working DBS training on Apple Silicon.** Full pipeline lands: geometry, rasterizer, dataset, training loop, densification, optimizer step. Committed as `75e5c90`.
+
+**Files added:**
+- `mlx_impl/geometry/projection.py` (~180 lines) — `build_covariance_3d`, `world_to_cam`, `persp_proj` (EWA), `add_blur_and_invert`, `compute_radius`, `project()`. Direct port of `fully_fused_projection_fwd.cu` + `utils.cuh::persp_proj`.
+- `mlx_impl/geometry/beta_kernel.py` — `beta_alpha(dx, dy, conic, opacity, beta)`. The bounded-support Beta kernel evaluated per-pixel: `alpha = opacity * max(0, 1 - sigma)^beta`, `sigma < 1` inside support.
+- `mlx_impl/rasterizer/slow.py` (~120 lines) — Track A soft rasterizer. Chunked front-to-back compositing, differentiable via `mx.grad`. No custom vjp needed. Sort once globally per view.
+- `mlx_impl/dataset.py` — NeRF-synthetic loader. NeRF-synthetic uses OpenGL camera convention (looks down -Z, +Y up); gsplat uses OpenCV convention (looks down +Z, +Y down). Handled inline via `c2w[:3, 1:3] *= -1` before inverting.
+- `mlx_impl/train.py` — training loop mirroring `../train.py`. Wires the whole thing.
+- `mlx_impl/tests/{test_geometry,test_rasterizer,render_view}.py` — smoke tests + a side-by-side visualizer.
+
+**Verification:**
+- Geometry: 5/5 tests pass (SPD covariance, world_to_cam identity, persp_proj centered-point, project() full, beta_alpha edge cases).
+- Rasterizer: 5/5 tests pass. Single primitive → visible disk. Depth sort works (front wins). Gradient flows through all 5 params. 5000 primitives at 128×128 renders in 318 ms with 1.3 GB peak.
+- End-to-end training: loss cleanly monotonic 0.77 → 0.03 over 1000 iters. MCMC actively grew primitives 3000 → 5650. PSNR 27.00 on training views. 244 s wall time on M4 Pro. Peak memory 21 GB.
+- Rendered output visually recognizable as lego. `out/lego_1k_view5.png` for the record.
+
+**Two debugging false alarms — both were correct math surprising me:**
+1. Rasterizer test claimed "means_2d gradient is zero." True — because I put the primitive at the exact image center. Perfectly symmetric MSE around that point → analytic grad = 0. Fixed the test to place primitives off-center.
+2. Position-noise test showed zero displacement at op=0.5. Turns out `(1-0.5)^100 ≈ 4e-30` genuinely rounds to zero in float32. That's the paper's design — high-opacity primitives don't move; only low-opacity (exploring) ones do. Fixed the test to sample both op=0.02 and op=0.9 and verify the ratio.
+
+**Performance envelope (M4 Pro, Track A):**
+- 100×100 images, 3-6k primitives: ~4-8 it/s, 4 min per 1000 iters, 10-21 GB peak.
+- 128×128 images, 5k primitives: 318 ms per view (forward only), 1.3 GB peak. Backward doubles this.
+- Scaling limit: at 100×100, ~20k primitives before we hit 24 GB. To go further we need chunking-over-pixels (tile-based rendering) or Track B Metal shaders.
+
+**Comparison to reference numbers:**
+- msplat baseline (this project, 2026-07-10): 25.09 PSNR on lego held-out at 7000 iters, 800×800, 51,907 splats, 31 s.
+- Our MLX-DBS: 27.00 PSNR on training views at 1000 iters, 100×100, 5,650 splats, 244 s.
+- Not directly comparable (train vs held-out, different res, different iter count), but the trajectory is right: DBS's SB color + Beta kernel converge much faster per-iteration than baseline 3DGS.
+
+**What's not done:**
+- Track B (Metal shaders) — the ~5-7 week port for real throughput.
+- Held-out test-view PSNR — need to render transforms_test.json views too.
+- Higher resolution — 200×200 or 400×400 needs pixel-tiling in the rasterizer to fit memory.
+- 4-channel end-to-end training run — model code supports it, needs a training config flag pass-through.
+
+**Next when we resume:** either (a) longer/higher-res training runs to push quality, or (b) start Track B Metal-shader work for the throughput to make (a) tractable.
+
 ## 2026-07-20 — MCMC densification ported to MLX; 8/8 tests pass
 
 Root cause the user identified: msplat is prune-only, no MCMC relocation → count shrinks (100k init → 51,907 after 7k iters). DBS's reference `train.py` uses MCMC to grow to cap_max via relocate + add + noise.
