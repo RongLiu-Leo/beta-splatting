@@ -409,7 +409,9 @@ class BetaModel:
         return names
 
     def save_ply(self, path: str):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        d = os.path.dirname(path)
+        if d:
+            os.makedirs(d, exist_ok=True)
         xyz = np.array(self._xyz)
         normals = np.zeros_like(xyz)
         # CUDA layout: sh0 stored transposed to (N, C, K), flattened.
@@ -464,8 +466,11 @@ class BetaModel:
         )
 
         sh0 = np.stack([np.asarray(v[n]) for n in sh0_names], axis=1).reshape(N, C, 1)
-        shN_flat = np.stack([np.asarray(v[n]) for n in shN_names], axis=1)
-        shN = shN_flat.reshape(N, C, K_shN)
+        if shN_names:
+            shN_flat = np.stack([np.asarray(v[n]) for n in shN_names], axis=1)
+            shN = shN_flat.reshape(N, C, K_shN)
+        else:
+            shN = np.zeros((N, C, 0), dtype=np.float32)
         sb_flat = np.stack([np.asarray(v[n]) for n in sb_names], axis=1)
         sb = sb_flat.reshape(N, K_sb_slot, self.sb_number)  # CUDA transposes to (N, slot, K)
 
