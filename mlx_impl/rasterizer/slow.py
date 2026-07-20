@@ -44,6 +44,7 @@ def rasterize_soft(
     depths: mx.array | None = None, # (N,) if provided, front-to-back sort applied first
     chunk_size: int = 512,
     trans_eps: float = 1e-4, # early-terminate accumulation when T falls below this
+    checkpoint: bool = True, # recompute chunk intermediates during backward
 ) -> Tuple[mx.array, mx.array]:
     """Return (image, alpha). image: (H, W, C), alpha: (H, W)."""
     N = means_2d.shape[0]
@@ -85,51 +86,50 @@ def rasterize_soft(
     # 4. Chunked front-to-back accumulation.
     image = mx.zeros((height, width, C))
     T = mx.ones((height, width))
-    for start in range(0, N, chunk_size):
-        end = min(N, start + chunk_size)
-        k = end - start
-        m_chunk = means_2d[start:end]                # (k, 2)
-        cn_chunk = conic[start:end]                  # (k, 3)
-        op_chunk = opacity[start:end]                # (k,)
-        bt_chunk = beta[start:end]                   # (k,)
-        col_chunk = colors[start:end]                # (k, C)
 
-        # Broadcast pixel-primitive offsets: (H, W, k)
+    # Per-chunk step wrapped in mx.checkpoint so autograd recomputes the
+    # per-pixel intermediates (dx, dy, sigma, base, alpha, one_minus, T_within,
+    # w — 8 tensors of shape (H, W, k)) during backward instead of storing them.
+    # For 100x100 with chunk=256 that's ~80 MB of intermediates per chunk that
+    # we no longer keep in memory across all chunks. See tests/test_rasterizer.py
+    # for the peak-memory delta.
+    def _one_chunk(image, T, m_chunk, cn_chunk, op_chunk, bt_chunk, col_chunk):
         dx = xs[..., None] - m_chunk[:, 0][None, None, :]
         dy = ys[..., None] - m_chunk[:, 1][None, None, :]
-
-        # Per-primitive per-pixel alpha.
-        # conic packed: [a, b, c] → sigma = a*dx² + c*dy² + 2*b*dx*dy
-        a = cn_chunk[:, 0][None, None, :]            # (1, 1, k)
+        a = cn_chunk[:, 0][None, None, :]
         b = cn_chunk[:, 1][None, None, :]
         c = cn_chunk[:, 2][None, None, :]
-        sigma = a * dx * dx + c * dy * dy + 2.0 * b * dx * dy       # (H, W, k)
+        sigma = a * dx * dx + c * dy * dy + 2.0 * b * dx * dy
         base = mx.maximum(1.0 - sigma, 0.0)
         alpha = mx.minimum(
             0.999,
             op_chunk[None, None, :] * mx.power(base, bt_chunk[None, None, :]),
         )
-        alpha = mx.where(sigma < 1.0, alpha, mx.zeros_like(alpha))  # (H, W, k)
-
-        # Within-chunk cumulative transmittance.
-        # T_within[..., i] = prod_{j<i}(1 - alpha[..., j])
-        one_minus = 1.0 - alpha                                     # (H, W, k)
-        # cumprod of first (k-1) entries prepended with 1.
+        alpha = mx.where(sigma < 1.0, alpha, mx.zeros_like(alpha))
+        one_minus = 1.0 - alpha
+        k = alpha.shape[-1]
         if k > 1:
-            cp = mx.cumprod(one_minus[..., :-1], axis=-1)           # (H, W, k-1)
+            cp = mx.cumprod(one_minus[..., :-1], axis=-1)
             T_within = mx.concatenate([mx.ones((height, width, 1)), cp], axis=-1)
         else:
             T_within = mx.ones((height, width, 1))
+        w = alpha * T_within * T[..., None]
+        new_image = image + w @ col_chunk
+        new_T = T * mx.prod(one_minus, axis=-1)
+        return new_image, new_T
 
-        # Weight per primitive per pixel = T (external) * T_within * alpha.
-        w = alpha * T_within * T[..., None]                          # (H, W, k)
-        # Contribute to image: (H, W, k) @ (k, C) → (H, W, C).
-        image = image + w @ col_chunk
+    _chunk_ckpt = mx.checkpoint(_one_chunk) if checkpoint else _one_chunk
 
-        # Update global transmittance after this chunk.
-        T = T * mx.prod(one_minus, axis=-1)                          # (H, W)
-
-        # Early terminate if all pixels are opaque.
+    for start in range(0, N, chunk_size):
+        end = min(N, start + chunk_size)
+        image, T = _chunk_ckpt(
+            image, T,
+            means_2d[start:end], conic[start:end],
+            opacity[start:end], beta[start:end], colors[start:end],
+        )
+        # Early terminate if all pixels are opaque. Note: reading T.max()
+        # forces a materialization and severs any pending lazy work — do this
+        # only outside the inner accumulation graph.
         if trans_eps > 0 and float(T.max().item()) < trans_eps:
             break
 

@@ -200,6 +200,13 @@ def train(args):
             print(line, flush=True)
             log_lines.append(line)
 
+        # Periodic checkpoint save so a crash doesn't lose everything.
+        if args.save_every > 0 and it % args.save_every == 0 and it > 0:
+            ckpt = args.output.replace(".ply", f"_iter{it}.ply")
+            model.save_ply(ckpt)
+            print(f"[save] {ckpt}  ({int(model._xyz.shape[0])} primitives)",
+                  flush=True)
+
     # --- Save PLY --------------------------------------------------------
     out_path = args.output
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
@@ -246,6 +253,8 @@ def parse_args():
     p.add_argument("--output", default="mlx_lego.ply")
     p.add_argument("--log-file", default=None)
     p.add_argument("--eval", action="store_true")
+    p.add_argument("--save-every", type=int, default=500,
+                   help="Save intermediate PLY every N iters. 0 to disable.")
     return p.parse_args()
 
 
