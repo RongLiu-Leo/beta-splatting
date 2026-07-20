@@ -8,7 +8,7 @@ Local Deformable Beta Splatting (DBS) on Apple Silicon, extended to 4-channel RG
 
 ## Status (2026-07-20)
 
-Branch: `feat/rgba-inference`. Scaffold + Phase-1 parity landed. No differentiable renderer yet, so no MLX training or MLX-rendered images.
+Branch: `feat/rgba-inference`. Scaffold + Phase-1 parity + MCMC densification landed. No differentiable renderer yet, so no MLX training or MLX-rendered images.
 
 ## Done
 
@@ -17,6 +17,7 @@ Branch: `feat/rgba-inference`. Scaffold + Phase-1 parity landed. No differentiab
 - **MLX scaffold (`mlx_impl/`, 684 lines) runs on M4 Pro + Metal.** `BetaModel` state + activations + PLY I/O, pure-MLX SB and SH forward, MLX SSIM/L1/PSNR — all channel-agnostic from line 1.
 - **Phase-1 parity tests pass on-device.** SB max_abs 5e-8 vs numpy ref (C=3 and C=4). SH bit-exact across degrees 0–3, C ∈ {3, 4}. Losses bit-exact. PLY save/load roundtrip < 1e-6.
 - **Real 3D on-device via msplat (baseline, not DBS).** Trained lego in 31 s, 7000 iters, 51,907 splats, PSNR 25.09 / SSIM 0.9174 → `lego_ns_7k.ply`. Confirms M4 Pro can carry DBS-scale loads and gives a numerical reference point.
+- **MCMC densification ported to MLX.** `relocate_gs`, `add_new_gs`, `_sample_alives`, `_update_params`, position-noise term, opacity/scale regularizers. Custom `MutableAdam` optimizer whose state grows/shrinks with the parameter tensors. 8/8 standalone tests pass, including the (1-new_op)^(ratio+1) = 1-old_op invariance. This is what makes DBS actually grow toward `cap_max` instead of pruning-only like msplat.
 
 ## Doing
 
@@ -24,9 +25,9 @@ Nothing in flight — waiting on go-ahead for the next phase.
 
 ## Next (in order)
 
-1. **Geometry pipeline (~1 week).** quat→covar, world→cam, 3D→2D projection with EWA covariance, Beta-kernel evaluation. Pure MLX, autograd handles bwd. Verifiable by projecting a CUDA-trained PLY and diffing against CUDA output.
+1. **Geometry pipeline (~1 week).** quat→covar (done in `densification.py`), world→cam, 3D→2D projection with EWA covariance, Beta-kernel evaluation. Pure MLX, autograd handles bwd. Verifiable by projecting a CUDA-trained PLY and diffing against CUDA output.
 2. **Track A: pure-MLX slow rasterizer (~1–2 weeks).** Soft rasterizer written entirely in MLX ops. 10–100× slower than msplat, but differentiable via autograd → training loop closes. Correctness reference for Track B.
-3. **Training loop + MCMC densification (~1 week).** Mirror `train.py` in MLX. Smoke-train `lego` end-to-end.
+3. **Training loop (~1 week).** Mirror `train.py` in MLX. Densification is already ported — this is just wiring the render call + loss + reg + optimizer step + the densification block every `densification_interval=100` iters in the window (500, 25000).
 4. **Track B: Metal-shader rasterizer + hand-written vjp (~5–7 weeks).** Custom Metal via `mx.fast.metal_kernel` + `@mx.custom_function`. Design from scratch, using msplat as shader-layout reference (not fork, not upstream — DBS changes core assumptions everywhere).
 5. **4-channel end-to-end (~1–2 weeks after Phase 4).** Flip `color_channels=4` runs; MLX code is already channel-agnostic, so the work is mostly verification + eval matrix.
 6. **Inference optimizations (parallel with 5).** Ranked list in `docs/inference_optimization.md`. Top: frustum culling audit, occlusion-ε tuning, PLAS-sorted PLYs, lobe pruning.

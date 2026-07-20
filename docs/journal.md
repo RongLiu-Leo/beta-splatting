@@ -6,6 +6,43 @@ Entry format: date, one-line summary, then whatever detail belongs on the record
 
 ---
 
+## 2026-07-20 — MCMC densification ported to MLX; 8/8 tests pass
+
+Root cause the user identified: msplat is prune-only, no MCMC relocation → count shrinks (100k init → 51,907 after 7k iters). DBS's reference `train.py` uses MCMC to grow to cap_max via relocate + add + noise.
+
+**Ported from `scene/beta_model.py` to `mlx_impl/beta_model.py`:**
+- `_update_params(idxs, ratio)` — gather + apply MCMC opacity-invariance: `new_op = 1 - (1 - op)^(1/(ratio+1))`, clamped to [0.005, 1-eps], stored pre-sigmoid.
+- `_sample_alives(probs, num, alive_indices)` — multinomial sample via `mx.random.categorical(log_probs)`, bincount for ratios via scatter-add.
+- `relocate_gs(dead_mask, optimizer)` — dead-slot replacement, reset Adam moments at source indices only.
+- `add_new_gs(cap_max, optimizer)` — grow by 5% up to cap, concatenate onto all parameter tensors, grow optimizer state.
+- `prune(live_mask, optimizer)` — pruning with paired optimizer state pruning. Discovered MLX 0.31.2 does not support boolean indexing; converted to int indices via numpy.
+
+**New files:**
+- `mlx_impl/optimizer.py` (~90 lines) — `MutableAdam`. Custom Adam with hooks the densification calls: `reinit_state_at(name, indices)`, `prune_state(name, keep_indices)`, `grow_state(name, extra_count)`. Not built on `mlx.optimizers.Adam` because that couples state init to fixed param shapes.
+- `mlx_impl/densification.py` (~90 lines) — `build_rotation`, `build_scaling_rotation`, `apply_position_noise`, `regularization_loss`. Direct port of `utils/general_utils.py` + `train.py:147-155`.
+- `mlx_impl/tests/test_densification.py` (~230 lines) — 8 tests, all pass.
+
+**Test results:**
+- relocate_gs: 100 dead → 0 dead, N stable at 1000 ✓
+- add_new_gs: +50 with cap 1500, +20 with cap 1020, optimizer state matches every param ✓
+- MCMC opacity invariance: `(1-new)^(r+1) = 1-old` bit-exact across ratios 0..4 ✓
+- Position noise: low-opacity (0.02) shift 1.30e-03, high-opacity (0.9) shift 0.00 — matches paper design where settled primitives barely move ✓
+- Regularization loss: finite and non-zero ✓
+- Prune: 500 → 300 primitives, optimizer state pruned in step ✓
+- MutableAdam: converges (x - 3)^2 to x = 3.0000 ✓
+- Full densify cycle mirroring `train.py:112-155`: 1000 → 1050 (+50), state coherent ✓
+
+**Design notes worth carrying:**
+- `MutableAdam` chosen over `mlx.optimizers.Adam` because MLX's Adam couples state initialization to initial param shapes. When primitives are added/pruned mid-training, we need first-class resize.
+- Boolean indexing gap in MLX 0.31.2 — all mask operations go through numpy `np.where` → mx.array int indices. Cheap on unified memory but worth flagging if MLX 0.32+ adds boolean support.
+- `mx.random.categorical(log_probs, num_samples=N)` is the multinomial equivalent; takes logits, not probs.
+
+**Not tested (blocked on rasterizer):**
+- Real training convergence with densification active — needs the render call to produce gradients that flow through the parameters.
+- Cap_max reaching (300k for lego) — need many densification steps in a real loop.
+
+**Next:** the geometry pipeline (world→cam, projection with EWA covariance, Beta-kernel evaluation) so the rasterizer has all its ingredients ready.
+
 ## 2026-07-10 — Option 3 executed: baseline 3DGS reconstruction on M4 Pro via msplat
 
 Ran `msplat` (baseline 3DGS on Metal) locally on the M4 Pro to get a real 3D reconstruction of `lego/` today, ahead of the MLX-DBS port maturing.

@@ -220,21 +220,172 @@ class BetaModel:
         self._scaling = params["scaling"]
         self._rotation = params["rotation"]
 
-    def prune(self, live_mask: mx.array):
-        """Keep only primitives where live_mask is True."""
-        # MLX supports boolean indexing.
-        self._xyz = self._xyz[live_mask]
-        self._sh0 = self._sh0[live_mask]
-        self._shN = self._shN[live_mask]
-        self._sb_params = self._sb_params[live_mask]
-        self._scaling = self._scaling[live_mask]
-        self._rotation = self._rotation[live_mask]
-        self._opacity = self._opacity[live_mask]
-        self._beta = self._beta[live_mask]
+    def prune(self, live_mask: mx.array, optimizer=None):
+        """Keep only primitives where live_mask is True.
+
+        If optimizer is provided (MutableAdam), its state is pruned in step.
+        MLX 0.31.2 doesn't support boolean indexing, so we convert to int
+        indices via numpy.
+        """
+        keep = mx.array(np.where(np.array(live_mask))[0].astype(np.int32))
+        self._xyz = self._xyz[keep]
+        self._sh0 = self._sh0[keep]
+        self._shN = self._shN[keep]
+        self._sb_params = self._sb_params[keep]
+        self._scaling = self._scaling[keep]
+        self._rotation = self._rotation[keep]
+        self._opacity = self._opacity[keep]
+        self._beta = self._beta[keep]
+        if optimizer is not None:
+            for name in optimizer.state:
+                optimizer.prune_state(name, keep)
 
     def oneupSHdegree(self):
         if self.active_sh_degree < self.max_sh_degree:
             self.active_sh_degree += 1
+
+    # --- MCMC densification -------------------------------------------------
+    # Ported from scene/beta_model.py (relocate_gs at L729, add_new_gs at L762,
+    # _update_params at L700, _sample_alives at L721, densification_postfix at
+    # L618, replace_tensors_to_optimizer at L651). Optimizer state grows /
+    # shrinks in lockstep with the parameter tensors — this is the usual place
+    # MLX ports break.
+
+    def _update_params(self, idxs: mx.array, ratio: mx.array):
+        """Gather params at `idxs`, adjust opacity per the MCMC-invariance rule.
+
+        The opacity update `new = 1 - (1 - op)^(1/(ratio+1))` preserves the
+        combined alpha contribution when one primitive is split into ratio+1
+        copies: (1 - new)^(ratio+1) = 1 - op. This is what makes MCMC
+        relocation distribution-preserving in the DBS paper.
+
+        Returns the pre-activation opacity (via inverse_sigmoid) since the
+        caller stores raw parameters and applies sigmoid at read time.
+        """
+        op = self.get_opacity[idxs, 0]                                     # (K,)
+        ratio_f = ratio.astype(mx.float32)
+        new_op = 1.0 - mx.power(1.0 - op, 1.0 / (ratio_f + 1.0))          # (K,)
+        new_op = mx.clip(new_op[..., None], 0.005, 1.0 - 1e-7)             # (K, 1)
+        # Store pre-activation.
+        new_op_raw = mx.log(new_op / (1.0 - new_op))
+        return (
+            self._xyz[idxs],
+            self._sh0[idxs],
+            self._shN[idxs],
+            self._sb_params[idxs],
+            new_op_raw,
+            self._beta[idxs],
+            self._scaling[idxs],
+            self._rotation[idxs],
+        )
+
+    def _sample_alives(
+        self,
+        probs: mx.array,
+        num: int,
+        alive_indices: mx.array | None = None,
+    ):
+        """Multinomial sample of `num` indices weighted by `probs`, with the
+        per-sample duplication count (ratio) returned alongside.
+
+        Matches scene/beta_model.py:_sample_alives. `alive_indices`, when
+        provided, maps sampled positions back into the model's index space.
+        """
+        probs = probs / (probs.sum() + 1e-7)
+        # mx.random.categorical wants logits over the last axis.
+        log_probs = mx.log(probs + 1e-20)
+        sampled = mx.random.categorical(log_probs, num_samples=num)        # (num,)
+        if alive_indices is not None:
+            sampled = alive_indices[sampled]
+        # Bincount → per-sample duplication count.
+        N = int(self._opacity.shape[0])
+        counts = mx.zeros(N, dtype=mx.int32)
+        counts[sampled] = counts[sampled] + mx.ones(sampled.shape[0], dtype=mx.int32)
+        # ^ scatter-add via the working index-write API verified in tests
+        ratio = counts[sampled]
+        return sampled, ratio
+
+    def relocate_gs(self, dead_mask: mx.array, optimizer):
+        """Replace `dead_mask` primitives with copies of live ones sampled
+        proportional to opacity. In-place on the model; optimizer momentum at
+        the source indices is reset.
+
+        Matches scene/beta_model.py:relocate_gs (L729).
+        """
+        dead_count = int(dead_mask.sum().item())
+        if dead_count == 0:
+            return
+        # np.where via numpy for portability of nonzero-index extraction.
+        import numpy as np
+        dm_np = np.array(dead_mask)
+        dead_indices = mx.array(np.where(dm_np)[0].astype(np.int32))
+        alive_indices = mx.array(np.where(~dm_np)[0].astype(np.int32))
+        if alive_indices.shape[0] == 0:
+            return
+
+        probs = self.get_opacity[alive_indices, 0]
+        reinit_idx, ratio = self._sample_alives(
+            probs=probs, num=dead_count, alive_indices=alive_indices,
+        )
+
+        new_xyz, new_sh0, new_shN, new_sb, new_op, new_beta, new_sc, new_rot = \
+            self._update_params(reinit_idx, ratio=ratio)
+
+        # Overwrite dead slots.
+        self._xyz[dead_indices] = new_xyz
+        self._sh0[dead_indices] = new_sh0
+        self._shN[dead_indices] = new_shN
+        self._sb_params[dead_indices] = new_sb
+        self._opacity[dead_indices] = new_op
+        self._beta[dead_indices] = new_beta
+        self._scaling[dead_indices] = new_sc
+        self._rotation[dead_indices] = new_rot
+
+        # Reference also copies new opacity to source (reinit_idx) — this is
+        # the MCMC-invariance step that keeps combined contribution constant.
+        self._opacity[reinit_idx] = self._opacity[dead_indices]
+
+        # Reset Adam moments at source indices only (relocation).
+        for name in optimizer.state:
+            optimizer.reinit_state_at(name, reinit_idx)
+
+    def add_new_gs(self, cap_max: int, optimizer) -> int:
+        """Grow primitive count by up to 5%, capped at `cap_max`. Returns the
+        number of new primitives added.
+
+        Matches scene/beta_model.py:add_new_gs (L762).
+        """
+        current = int(self._opacity.shape[0])
+        target = min(cap_max, int(1.05 * current))
+        num_new = max(0, target - current)
+        if num_new <= 0:
+            return 0
+
+        probs = self.get_opacity[:, 0]
+        add_idx, ratio = self._sample_alives(probs=probs, num=num_new)
+
+        new_xyz, new_sh0, new_shN, new_sb, new_op, new_beta, new_sc, new_rot = \
+            self._update_params(add_idx, ratio=ratio)
+
+        # Update the SOURCE primitives' opacity to the invariance-preserving
+        # value (source keeps the same shape, gets shared new_op).
+        self._opacity[add_idx] = new_op
+
+        # Append new primitives to every tensor.
+        self._xyz = mx.concatenate([self._xyz, new_xyz], axis=0)
+        self._sh0 = mx.concatenate([self._sh0, new_sh0], axis=0)
+        self._shN = mx.concatenate([self._shN, new_shN], axis=0)
+        self._sb_params = mx.concatenate([self._sb_params, new_sb], axis=0)
+        self._opacity = mx.concatenate([self._opacity, new_op], axis=0)
+        self._beta = mx.concatenate([self._beta, new_beta], axis=0)
+        self._scaling = mx.concatenate([self._scaling, new_sc], axis=0)
+        self._rotation = mx.concatenate([self._rotation, new_rot], axis=0)
+
+        # Grow optimizer state by num_new zeros for every param.
+        for name in optimizer.state:
+            optimizer.grow_state(name, num_new)
+
+        return num_new
 
     # --- PLY I/O -----------------------------------------------------------
     # I/O runs on numpy through plyfile; MLX arrays are converted at the
