@@ -115,10 +115,15 @@ def train(args):
           f"at {cams[0].width}x{cams[0].height} in {time.time()-t0:.1f}s")
 
     # --- Init model + optimizer ------------------------------------------
-    points, colors = initialize_point_cloud(args.initial_points, extent=1.5, seed=args.seed)
     model = BetaModel(sh_degree=args.sh_degree, sb_number=args.sb_number,
                       color_channels=3)
-    model.create_from_pcd(points, colors, spatial_lr_scale=1.0)
+    if args.resume:
+        print(f"[resume] loading {args.resume}")
+        model.load_ply(args.resume)
+        print(f"[resume] {int(model._xyz.shape[0])} primitives loaded")
+    else:
+        points, colors = initialize_point_cloud(args.initial_points, extent=1.5, seed=args.seed)
+        model.create_from_pcd(points, colors, spatial_lr_scale=1.0)
 
     opt = MutableAdam(_param_lrs(spatial_lr_scale=1.0))
     opt.init_state(model.parameters())
@@ -255,6 +260,9 @@ def parse_args():
     p.add_argument("--eval", action="store_true")
     p.add_argument("--save-every", type=int, default=500,
                    help="Save intermediate PLY every N iters. 0 to disable.")
+    p.add_argument("--resume", default=None,
+                   help="Path to a PLY to resume training from. Loads parameters "
+                        "but not optimizer state (fresh Adam moments).")
     return p.parse_args()
 
 

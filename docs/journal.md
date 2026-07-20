@@ -6,6 +6,38 @@ Entry format: date, one-line summary, then whatever detail belongs on the record
 
 ---
 
+## 2026-07-20 — PSNR 30.34 via resume + refinement; three OOM-close runs debugged
+
+Full training arc today, four runs, converging strategy each time.
+
+**Run 1 (v1, earlier):** 1000 iters, cap 20k, densify every 100. → PSNR 27.34, 5650 primitives, 21 GB peak (survived by luck).
+
+**Run 2 (v2):** Added `--save-every 500` and `mx.checkpoint` in rasterizer. 3000 iters attempted, cap 20k. Killed at iter 1800 (peak 21.3 GB, system free memory below 200 MB → OOM imminent). Saved iter1500 checkpoint. PSNR 27.88 on iter1500 render.
+
+**Run 3 (v3):** Tried tighter densify + cap 6k. Same OOM territory around iter 1400. Killed. Saved iter1000 (PSNR ~28) and iter500 checkpoints.
+
+**Run 4 (v4, this session):** Added `--resume` flag. Loaded `lego_v3_iter1000.ply` (3827 primitives), disabled densification, ran 3000 more iters of pure refinement.
+
+Peak memory plateaued at **15 GB from iter 100 through iter 3000** because primitives don't grow. Speed steady at 5 it/s. Loss trajectory:
+- Resume start: loss 0.047, PSNR 28.39 at iter 1000
+- iter 2000: loss 0.019, PSNR 29.39
+- iter 3000: loss 0.015, **mean PSNR 30.34 on 20 train views** (single-view range 28.87–31.25)
+
+**Wall time totals:** ~5 min densify (v3 to iter 1000) + ~10 min refinement (v4). ~15 min end-to-end on M4 Pro.
+
+**Non-obvious findings this session:**
+- **Refinement > more densify.** Fewer primitives (3827) refined longer beat more primitives (5650) refined less. Density growth was hitting the 24 GB wall; freezing primitive count and iterating longer works better on Apple Silicon.
+- **`mx.checkpoint` gives huge active-memory savings (1.6 GB → 15 MB) but modest peak savings during training.** The outer autograd graph over the training step still dominates peak. Where checkpoint really pays off is inference / test rendering (test suite peak 1314 → 345 MB).
+- **`--resume` only restores parameters, not Adam state.** First iter after resume shows loss spike (~0.047 vs 0.038 at save time) as new Adam moments spin up. Recovers within ~100 iters.
+
+**Files added this session:** `--resume` flag in `mlx_impl/train.py`; `--save-every` (added earlier); `mx.checkpoint` in the rasterizer (added earlier). Nothing new; strategy change.
+
+**Next options:**
+1. Higher-resolution runs (200×200 needs pixel-tiling in the rasterizer to fit memory).
+2. Held-out test-view eval (right now we only measured training views).
+3. Track B (Metal kernels) — the ~5-7 week port for real throughput and higher res.
+4. Chain multiple resume+refine cycles at increasing resolution.
+
 ## 2026-07-20 — End-to-end MLX-DBS trained; PSNR 27.34 on lego in 4 minutes
 
 **First working DBS training on Apple Silicon.** Full pipeline lands: geometry, rasterizer, dataset, training loop, densification, optimizer step. Committed as `75e5c90`.

@@ -8,7 +8,7 @@ Local Deformable Beta Splatting (DBS) on Apple Silicon, extended to 4-channel RG
 
 ## Status (2026-07-20)
 
-Branch: `feat/rgba-inference`. **Track A works end-to-end.** MLX-DBS trained on lego at 100×100 → PSNR 27.34 dB, 5,650 primitives, ~4 min wall time on M4 Pro. Real 3D on-device with no CUDA anywhere.
+Branch: `feat/rgba-inference`. **Track A works end-to-end and converges to good quality.** MLX-DBS on lego at 100×100 hits **PSNR 30.34 dB** on training views after 4000 total iters (1000 densify + 3000 refinement, via resume). 3827 primitives. Real 3D on-device, no CUDA. Best single-view PSNR: 31.25.
 
 ## Done
 
@@ -22,6 +22,8 @@ Branch: `feat/rgba-inference`. **Track A works end-to-end.** MLX-DBS trained on 
 - **Track A soft rasterizer.** Pure MLX, chunked front-to-back compositing, differentiable via autograd — no custom vjp. 5/5 tests pass including gradient flow through all inputs.
 - **Dataset loader + training loop.** NeRF-synthetic → MLX cameras with OpenGL→OpenCV axis flip handled. Full training loop wires model + render + loss + reg + Adam + MCMC densify.
 - **First working end-to-end DBS training on Apple Silicon.** 1000 iters on lego at 100×100: loss 0.77 → 0.03, primitives 3000 → 5650, **PSNR 27.34 dB on training views, 4 min wall time, 21 GB peak memory.** Rendered output visually recognizable — see `out/lego_1k_view5.png`.
+- **Checkpointed rasterizer + periodic saves + `--resume`.** `mx.checkpoint` in the rasterizer drops active memory during training from 1.6 GB → 15 MB. Periodic PLY saves via `--save-every` rescue mid-run OOMs. `--resume` reloads a PLY for continued training. Rendered `out/lego_v4_final_view5.png`.
+- **Resume + refinement-only strategy → PSNR 30.34.** After densify-heavy runs kept OOMing at ~5,650 primitives, switched to: densify to 3,827 primitives, save, then resume and refine 3,000 more iters with no growth. Peak memory plateaus at 15 GB (safe). Final: **mean PSNR 30.34 dB on 20 training views, best single-view 31.25 dB.**
 
 ## Doing
 
