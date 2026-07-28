@@ -15,3 +15,7 @@ data
 experiment
 lego
 results
+.DS_Store
+.venv-mlx/
+lego_ns/
+*.ply
