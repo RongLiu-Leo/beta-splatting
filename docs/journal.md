@@ -6,6 +6,31 @@ Entry format: date, one-line summary, then whatever detail belongs on the record
 
 ---
 
+## 2026-07-28 — Held-out test-set eval; +2.59 dB from refinement generalizes
+
+First honest, no-cherry-picking numbers on the lego test split (200 views, 100×100).
+
+**Result matrix:**
+
+| PLY | Primitives | Total iters | Train PSNR | **Test PSNR** | **Test SSIM** |
+|---|---|---|---|---|---|
+| `out/lego_1k.ply` | 5650 | 1000 (densify only) | ~27.34 | **25.98** | 0.9294 |
+| `out/lego_v4.ply` | 3827 | 4000 (1k densify + 3k refine) | 30.34 | **28.57** | 0.9553 |
+
+Train→test gap for v4: **1.77 dB** — well within normal 3DGS-family territory.
+Refinement phase alone (fewer primitives, more iters) buys **+2.59 dB on the test split** — validates the strategy from 2026-07-20.
+
+Per-view spread on v4: PSNR min 24.18 / median 28.70 / max 32.63 / mean 28.57. Worst views (v009/v010/v011) saved as side-by-sides in `out/eval/`; they cluster around the same viewpoint, so failure looks like a specific angle/pose issue rather than global under-fitting.
+
+**Files added:**
+- `mlx_impl/eval/held_out.py` — renders every test view, computes PSNR/SSIM, dumps `eval/<name>.json` summary + per-view list, optionally saves worst-K side-by-sides.
+
+**LPIPS deferred.** The `lpipsPyTorch/` dir in the repo is torch-based; the MLX env doesn't have torch pinned. Two options: pin torch back for eval-only, or reimplement LPIPS-Alex in MLX. Deferred until Track A gets one more round of results.
+
+**Msplat comparison deferred.** `lego_ns_7k.ply` uses a different PLY schema (msplat/gsplat vs our DBS format); loading it through `BetaModel.load_ply` fails. Will need a separate baseline eval path (render via msplat directly, PSNR against the same test cameras) — parked, not blocking.
+
+---
+
 ## 2026-07-20 — PSNR 30.34 via resume + refinement; three OOM-close runs debugged
 
 Full training arc today, four runs, converging strategy each time.

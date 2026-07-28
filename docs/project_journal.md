@@ -6,9 +6,9 @@ Definitive one-page status. Longer dated log in `journal.md`; deep design docs e
 
 Local Deformable Beta Splatting (DBS) on Apple Silicon, extended to 4-channel RGBA, with inference optimized for real-time. Motivations: kill Colab dependency; give alpha the same view-dependent freedom SB gives RGB; ship a viable renderer, not just paper numbers.
 
-## Status (2026-07-20)
+## Status (2026-07-28)
 
-Branch: `feat/rgba-inference`. **Track A works end-to-end and converges to good quality.** MLX-DBS on lego at 100×100 hits **PSNR 30.34 dB** on training views after 4000 total iters (1000 densify + 3000 refinement, via resume). 3827 primitives. Real 3D on-device, no CUDA. Best single-view PSNR: 31.25.
+Branch: `feat/rgba-inference`, pushed to `origin/feat/rgba-inference`. **Track A works end-to-end and converges to good quality.** MLX-DBS on lego at 100×100 hits **PSNR 30.34 dB on training views** and **PSNR 28.57 dB / SSIM 0.9553 on the 200-view held-out test split** (`lego_v4.ply`, 3827 primitives, 1000 densify + 3000 refine via resume). Real 3D on-device, no CUDA. Refine phase alone was worth +2.59 dB test-PSNR vs the 1000-iter densify-only checkpoint (25.98 → 28.57).
 
 ## Done
 
@@ -24,17 +24,18 @@ Branch: `feat/rgba-inference`. **Track A works end-to-end and converges to good 
 - **First working end-to-end DBS training on Apple Silicon.** 1000 iters on lego at 100×100: loss 0.77 → 0.03, primitives 3000 → 5650, **PSNR 27.34 dB on training views, 4 min wall time, 21 GB peak memory.** Rendered output visually recognizable — see `out/lego_1k_view5.png`.
 - **Checkpointed rasterizer + periodic saves + `--resume`.** `mx.checkpoint` in the rasterizer drops active memory during training from 1.6 GB → 15 MB. Periodic PLY saves via `--save-every` rescue mid-run OOMs. `--resume` reloads a PLY for continued training. Rendered `out/lego_v4_final_view5.png`.
 - **Resume + refinement-only strategy → PSNR 30.34.** After densify-heavy runs kept OOMing at ~5,650 primitives, switched to: densify to 3,827 primitives, save, then resume and refine 3,000 more iters with no growth. Peak memory plateaus at 15 GB (safe). Final: **mean PSNR 30.34 dB on 20 training views, best single-view 31.25 dB.**
+- **Held-out test-set eval landed.** New `mlx_impl/eval/held_out.py` renders every camera in `transforms_test.json`, reports per-view + summary PSNR/SSIM, dumps JSON, and saves worst-K side-by-sides. Results on lego test split (200 views @ 100×100): `lego_v4.ply` **28.57 / 0.9553**, `lego_1k.ply` **25.98 / 0.9294**. Full runs live in `eval/lego_v4_test.json` and `eval/lego_1k_test.json`. Confirms refine phase generalizes (+2.59 dB test).
 
 ## Doing
 
-Nothing in flight — waiting on go-ahead for the next phase.
+Higher-resolution Track A run (200×200) — kicked off in a tmux session; monitoring peak memory to decide if pixel-tiling is necessary.
 
 ## Next (in order)
 
-1. **Longer/higher-res Track A runs.** 3000-5000 iters, 200×200 or 400×400 images. May need pixel-tiling in the rasterizer to fit 24 GB. Push PSNR toward paper numbers.
-2. **Held-out eval matrix.** Load transforms_test.json, render, compute test-view PSNR/SSIM/LPIPS. First honest comparison vs msplat baseline.
-3. **Track B: Metal-shader rasterizer + hand-written vjp (~5–7 weeks).** Custom Metal via `mx.fast.metal_kernel` + `@mx.custom_function`. Track A stays as reference implementation. This is what unlocks paper-scale training on-device.
-4. **4-channel end-to-end runs.** Model + rasterizer + losses are already channel-agnostic — just needs a `--color-channels 4` flag pass-through and an alpha-aware dataset loader for NeRF-synthetic (which has real alpha in the PNGs).
+1. **Longer/higher-res Track A runs (in progress).** 200×200 or 400×400 images, 3000-5000 iters, resume+refine strategy. May need pixel-tiling in the rasterizer to fit 24 GB. Push test PSNR beyond 28.57.
+2. **4-channel end-to-end runs.** Model + rasterizer + losses are already channel-agnostic — needs a `--color-channels 4` flag pass-through and an alpha-aware dataset loader for NeRF-synthetic (which has real alpha in the PNGs).
+3. **LPIPS on the held-out matrix.** PSNR/SSIM done; LPIPS via lpipsPyTorch is torch-based — decide whether to pin PyTorch back in the env or drop LPIPS.
+4. **Track B: Metal-shader rasterizer + hand-written vjp (~5–7 weeks).** Custom Metal via `mx.fast.metal_kernel` + `@mx.custom_function`. Track A stays as reference implementation. This is what unlocks paper-scale training on-device.
 5. **Inference optimizations.** Ranked list in `docs/inference_optimization.md`. Top: frustum culling audit, occlusion-ε tuning, PLAS-sorted PLYs, lobe pruning.
 
 ## Rejected / parked
